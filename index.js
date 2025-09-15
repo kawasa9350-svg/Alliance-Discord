@@ -251,11 +251,21 @@ async function handleLootsplitCommand(interaction) {
 
         // Group users by guild for per-guild totals
         const guildTotals = {};
+        const guildPlayerCounts = {};
+        
+        // Count players per guild
         registeredUsers.forEach(user => {
-            if (!guildTotals[user.guild]) {
-                guildTotals[user.guild] = 0;
+            if (!guildPlayerCounts[user.guild]) {
+                guildPlayerCounts[user.guild] = 0;
             }
-            guildTotals[user.guild] += lootPerPerson;
+            guildPlayerCounts[user.guild]++;
+        });
+        
+        // Calculate per-guild totals (player payouts + guild tax per player)
+        Object.entries(guildPlayerCounts).forEach(([guild, playerCount]) => {
+            const guildTaxPerPlayer = Math.floor(guildTax / registeredUsers.length);
+            const totalPerGuild = (lootPerPerson + guildTaxPerPlayer) * playerCount;
+            guildTotals[guild] = totalPerGuild;
         });
 
         // Create embed
