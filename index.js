@@ -140,7 +140,7 @@ async function handleRegisterCommand(interaction) {
         // Send confirmation
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
-            .setDescription(`Welcome to Big and Strong!`)
+            .setDescription(`Welcome to Hit the Crown!`)
             .setColor(guildConfig.color)
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
@@ -155,7 +155,7 @@ async function handleRegisterCommand(interaction) {
             confirmEmbed.addFields({ name: '📝 Manual Action Required', value: nicknameError, inline: false });
         }
 
-        await interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [confirmEmbed] });
 
     } catch (error) {
         console.error('Error in register command:', error);
