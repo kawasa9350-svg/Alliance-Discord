@@ -311,13 +311,13 @@ async function handleLootsplitCommand(interaction) {
             .setColor(contentConfig.color)
             .addFields(
                 { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
-                { name: '📢 Caller', value: `${caller} (${callerData.ingameName}) - ${callerData.guild}`, inline: false }
+                { name: '📢 Caller', value: `${caller} - ${callerData.guild}`, inline: false }
             )
             .setTimestamp();
 
         // Add players list as proper mentions only
         const playersList = registeredUsers.map(user => {
-            return `<@${user.user.id}> (${user.ingameName}) - ${user.guild}`;
+            return `<@${user.user.id}> - ${user.guild}`;
         }).join('\n');
 
         embed.addFields({ name: '👥 Participants', value: playersList, inline: false });
