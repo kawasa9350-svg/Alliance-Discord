@@ -202,6 +202,14 @@ async function handleLootsplitCommand(interaction) {
         }
 
         // Parse caller from the caller input string
+        if (!callerInput) {
+            await interaction.reply({ 
+                content: '❌ This command has been updated. Please use the new format: `/lootsplit content_type users caller total_loot`\n\n**New format:**\n- `content_type`: Type of content\n- `users`: Mention participating users\n- `caller`: Mention the caller\n- `total_loot`: Total loot value\n\nPlease try the command again with the updated format.',
+                flags: 64 // Ephemeral flag
+            });
+            return;
+        }
+        
         const callerMatch = callerInput.match(/<@!?(\d+)>/);
         if (!callerMatch) {
             await interaction.reply({ 
