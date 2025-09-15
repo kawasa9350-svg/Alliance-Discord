@@ -1,6 +1,15 @@
 const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const mongoose = require('mongoose');
 const config = require('./config');
+
+// Debug logging
+console.log('🔍 Debug Info:');
+console.log('BOT_TOKEN exists:', !!process.env.BOT_TOKEN);
+console.log('BOT_TOKEN length:', process.env.BOT_TOKEN ? process.env.BOT_TOKEN.length : 'undefined');
+console.log('BOT_TOKEN starts with:', process.env.BOT_TOKEN ? process.env.BOT_TOKEN.substring(0, 10) + '...' : 'undefined');
+console.log('CLIENT_ID exists:', !!process.env.CLIENT_ID);
+console.log('CLIENT_ID value:', process.env.CLIENT_ID);
+
 const User = require('./models/User');
 const Composition = require('./models/Composition');
 const SignupSession = require('./models/SignupSession');
@@ -898,4 +907,5 @@ client.on('error', console.error);
 process.on('unhandledRejection', console.error);
 
 // Login to Discord
+console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
 client.login(config.botToken);
