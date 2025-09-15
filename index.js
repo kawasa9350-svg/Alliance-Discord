@@ -906,6 +906,18 @@ async function updateSignupEmbed(interaction, session) {
 client.on('error', console.error);
 process.on('unhandledRejection', console.error);
 
+// Create a simple HTTP server for Render
+const http = require('http');
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Discord Bot is running!');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`🌐 HTTP server running on port ${PORT}`);
+});
+
 // Login to Discord
 console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
 client.login(config.botToken);
