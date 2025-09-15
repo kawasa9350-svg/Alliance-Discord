@@ -25,20 +25,23 @@ module.exports = {
         }
     },
 
-    // Content Types and Tax Rates
+    // Content Types
     contentTypes: {
         'BZ Roam': {
-            taxRate: 0.35,
             color: '#FF6B35'
         },
         'Shitters Roam': {
-            taxRate: 0.36,
             color: '#4ECDC4'
         },
         'Dungeons': {
-            taxRate: 0.30,
             color: '#9B59B6'
         },
+        'Avalonian Dungeon': {
+            color: '#E74C3C'
+        },
+        'Hellgate': {
+            color: '#F39C12'
+        }
     },
 
     // Caller Fee Rate

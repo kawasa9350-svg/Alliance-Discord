@@ -170,8 +170,8 @@ async function handleRegisterCommand(interaction) {
 async function handleLootsplitCommand(interaction) {
     try {
         const contentType = interaction.options.getString('content_type');
-        const hostGuild = interaction.options.getString('host_guild');
         const usersInput = interaction.options.getString('users');
+        const callerInput = interaction.options.getString('caller');
         const totalLoot = interaction.options.getInteger('total_loot');
 
         // Get content type config
@@ -201,6 +201,17 @@ async function handleLootsplitCommand(interaction) {
             return;
         }
 
+        // Parse caller from the caller input string
+        const callerMatch = callerInput.match(/<@!?(\d+)>/);
+        if (!callerMatch) {
+            await interaction.reply({ 
+                content: '❌ Please mention the caller user.',
+                flags: 64 // Ephemeral flag
+            });
+            return;
+        }
+        const callerId = callerMatch[1];
+
         // Fetch the mentioned users
         const mentionedUsers = new Map();
         for (const userId of mentionedUserIds) {
@@ -210,6 +221,19 @@ async function handleLootsplitCommand(interaction) {
             } catch (error) {
                 console.error(`Error fetching user ${userId}:`, error);
             }
+        }
+
+        // Fetch caller
+        let caller;
+        try {
+            caller = await client.users.fetch(callerId);
+        } catch (error) {
+            console.error(`Error fetching caller ${callerId}:`, error);
+            await interaction.reply({ 
+                content: '❌ Error fetching caller user.',
+                flags: 64 // Ephemeral flag
+            });
+            return;
         }
 
         // Check if all mentioned users are registered
@@ -229,6 +253,16 @@ async function handleLootsplitCommand(interaction) {
             }
         }
 
+        // Check if caller is registered
+        const callerData = await User.findOne({ discordId: callerId });
+        if (!callerData) {
+            await interaction.reply({ 
+                content: `❌ The caller ${caller} needs to register first.\n\nPlease use \`/register\` to register before participating in loot splits.`,
+                flags: 64 // Ephemeral flag
+            });
+            return;
+        }
+
         // If there are unregistered users, show error
         if (unregisteredUsers.length > 0) {
             const unregisteredMentions = unregisteredUsers.map(user => `<@${user.id}>`).join(', ');
@@ -239,15 +273,11 @@ async function handleLootsplitCommand(interaction) {
             return;
         }
 
-        // Calculate loot split
-        const guildTaxRate = contentConfig.taxRate;
+        // Calculate loot split (only caller fee, no guild tax)
         const callerFeeRate = config.callerFeeRate;
-        
-        const guildTax = Math.floor(totalLoot * guildTaxRate);
         const callerFee = Math.floor(totalLoot * callerFeeRate);
-        const totalTaxes = guildTax + callerFee;
-        const lootAfterTax = totalLoot - totalTaxes;
-        const lootPerPerson = Math.floor(lootAfterTax / registeredUsers.length);
+        const lootAfterCallerFee = totalLoot - callerFee;
+        const lootPerPerson = Math.floor(lootAfterCallerFee / registeredUsers.length);
 
         // Group users by guild for per-guild totals
         const guildTotals = {};
@@ -261,42 +291,35 @@ async function handleLootsplitCommand(interaction) {
             guildPlayerCounts[user.guild]++;
         });
         
-        // Calculate per-guild totals (player payouts + guild tax per player)
+        // Calculate per-guild totals (only player payouts, no guild tax)
         Object.entries(guildPlayerCounts).forEach(([guild, playerCount]) => {
-            const guildTaxPerPlayer = Math.floor(guildTax / registeredUsers.length);
-            const totalPerGuild = (lootPerPerson + guildTaxPerPlayer) * playerCount;
+            const totalPerGuild = lootPerPerson * playerCount;
             guildTotals[guild] = totalPerGuild;
         });
 
         // Create embed
         const embed = new EmbedBuilder()
-            .setTitle('Loot Split')
+            .setTitle(`💰 Loot Split - ${contentType}`)
             .setColor(contentConfig.color)
             .addFields(
-                { name: 'Split Type', value: contentType, inline: true },
-                { name: 'Total Loot (Before Tax)', value: totalLoot.toLocaleString(), inline: true },
-                { name: 'Host Guild', value: hostGuild, inline: true },
-                { name: 'Caller Fee', value: callerFee.toLocaleString(), inline: true },
-                { name: 'Guild Tax', value: guildTax.toLocaleString(), inline: true },
-                { name: 'Total Loot (After Tax)', value: lootAfterTax.toLocaleString(), inline: true },
-                { name: 'Attendees', value: registeredUsers.length.toString(), inline: true },
-                { name: 'Player Payout', value: lootPerPerson.toLocaleString(), inline: true }
+                { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
+                { name: '📢 Caller', value: `${caller} (${callerData.ingameName}) - ${callerData.guild}`, inline: false }
             )
             .setTimestamp();
 
         // Add players list as proper mentions only
         const playersList = registeredUsers.map(user => {
-            return `<@${user.user.id}>`;
-        }).join(' ');
+            return `<@${user.user.id}> (${user.ingameName}) - ${user.guild}`;
+        }).join('\n');
 
-        embed.addFields({ name: 'Players', value: playersList, inline: false });
+        embed.addFields({ name: '👥 Participants', value: playersList, inline: false });
 
         // Add per guild totals
         const perGuildTotals = Object.entries(guildTotals)
-            .map(([guild, total]) => `**${guild}:** ${total.toLocaleString()}`)
+            .map(([guild, total]) => `**${guild}:** ${total.toLocaleString()} silver (${guildPlayerCounts[guild]} players)`)
             .join('\n');
 
-        embed.addFields({ name: 'Per Guild Total to Collect', value: perGuildTotals, inline: false });
+        embed.addFields({ name: '🏛️ Guild Breakdown', value: perGuildTotals, inline: false });
 
         await interaction.reply({ embeds: [embed] });
 

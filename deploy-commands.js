@@ -43,7 +43,7 @@ const commands = [
     },
     {
         name: 'lootsplit',
-        description: 'Calculate loot split with guild taxes and caller fees',
+        description: 'Calculate loot split with caller fees (no guild tax)',
         options: [
             {
                 name: 'content_type',
@@ -59,18 +59,14 @@ const commands = [
                 ]
             },
             {
-                name: 'host_guild',
-                description: 'Guild hosting the content',
-                type: 3, // STRING type
-                required: true,
-                choices: [
-                    { name: 'Phoenix Rebels', value: 'Phoenix Rebels' },
-                    { name: 'Trash Collectors', value: 'Trash Collectors' }
-                ]
-            },
-            {
                 name: 'users',
                 description: 'Mention the users participating (e.g., @user1 @user2 @user3)',
+                type: 3, // STRING type
+                required: true
+            },
+            {
+                name: 'caller',
+                description: 'Mention the caller user (e.g., @caller)',
                 type: 3, // STRING type
                 required: true
             },
