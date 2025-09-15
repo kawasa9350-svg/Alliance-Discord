@@ -3,7 +3,7 @@ services:
     name: alliance-discord-bot
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install --production
     startCommand: npm start
     envVars:
       - key: BOT_TOKEN

@@ -44,7 +44,7 @@ git push -u origin main
 4. Configure the service:
    - **Name**: `alliance-discord-bot`
    - **Environment**: `Node`
-   - **Build Command**: `npm install`
+   - **Build Command**: `npm install --production`
    - **Start Command**: `npm start`
    - **Plan**: Free (or paid if you prefer)
 
