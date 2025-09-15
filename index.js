@@ -299,10 +299,15 @@ async function handleLootsplitCommand(interaction) {
             guildPlayerCounts[user.guild]++;
         });
         
-        // Calculate per-guild totals (only player payouts, no guild tax)
+        // Calculate per-guild totals (player payouts + caller fee if caller is from that guild)
         Object.entries(guildPlayerCounts).forEach(([guild, playerCount]) => {
             const totalPerGuild = lootPerPerson * playerCount;
-            guildTotals[guild] = totalPerGuild;
+            // Add caller fee to the caller's guild
+            if (guild === callerData.guild) {
+                guildTotals[guild] = totalPerGuild + callerFee;
+            } else {
+                guildTotals[guild] = totalPerGuild;
+            }
         });
 
         // Create embed
