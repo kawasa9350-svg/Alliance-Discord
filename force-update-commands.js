@@ -128,37 +128,50 @@ const rest = new REST({ version: '10' }).setToken(config.botToken);
 
 (async () => {
     try {
-        console.log('🔄 Started refreshing application (/) commands.');
+        console.log('🚀 FORCE UPDATING COMMANDS...');
+        console.log('=====================================');
         
-        // Clear existing global commands first
-        console.log('🗑️  Clearing existing global commands...');
-        await rest.put(
-            Routes.applicationCommands(config.clientId),
-            { body: [] },
-        );
-        console.log('✅ Cleared global commands.');
+        // Get all guilds the bot is in
+        const guilds = await rest.get(Routes.userGuilds());
+        console.log(`📊 Bot is in ${guilds.length} servers`);
         
-        // Deploy new global commands
-        console.log('📤 Deploying new global commands...');
-        await rest.put(
-            Routes.applicationCommands(config.clientId),
-            { body: commands },
-        );
-        console.log('✅ Successfully deployed global application (/) commands.');
-
-        // Deploy to guild-specific commands (instant updates)
-        if (config.testGuildId) {
-            console.log('📤 Deploying guild-specific commands for instant updates...');
-            await rest.put(
-                Routes.applicationGuildCommands(config.clientId, config.testGuildId),
-                { body: commands },
-            );
-            console.log('✅ Successfully deployed guild-specific (/) commands for testing.');
-        } else {
-            console.log('⚠️  No testGuildId configured. Add your server ID to config.js for instant command updates.');
+        // Clear and deploy to ALL guilds for instant updates
+        for (const guild of guilds) {
+            try {
+                console.log(`🔄 Updating commands for: ${guild.name} (${guild.id})`);
+                
+                // Clear existing commands
+                await rest.put(
+                    Routes.applicationGuildCommands(config.clientId, guild.id),
+                    { body: [] }
+                );
+                
+                // Deploy new commands
+                await rest.put(
+                    Routes.applicationGuildCommands(config.clientId, guild.id),
+                    { body: commands }
+                );
+                
+                console.log(`✅ Updated commands for: ${guild.name}`);
+            } catch (error) {
+                console.error(`❌ Failed to update commands for ${guild.name}:`, error.message);
+            }
         }
-
+        
+        // Also update global commands
+        console.log('🌍 Updating global commands...');
+        await rest.put(
+            Routes.applicationCommands(config.clientId),
+            { body: commands }
+        );
+        console.log('✅ Updated global commands');
+        
+        console.log('=====================================');
+        console.log('🎉 COMMAND UPDATE COMPLETE!');
+        console.log('Commands should now be updated in all servers.');
+        console.log('If you still see old commands, try restarting Discord.');
+        
     } catch (error) {
-        console.error('❌ Error deploying commands:', error);
+        console.error('❌ Error force updating commands:', error);
     }
 })();
