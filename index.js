@@ -172,6 +172,7 @@ async function handleLootsplitCommand(interaction) {
         const contentType = interaction.options.getString('content_type');
         const usersInput = interaction.options.getString('users');
         const callerInput = interaction.options.getString('caller');
+        const repairFees = interaction.options.getInteger('repair_fees');
         const totalLoot = interaction.options.getInteger('total_loot');
 
         // Get content type config
@@ -281,10 +282,11 @@ async function handleLootsplitCommand(interaction) {
             return;
         }
 
-        // Calculate loot split (only caller fee, no guild tax)
+        // Calculate loot split (repair fees subtracted first, then caller fee, no guild tax)
+        const lootAfterRepairFees = totalLoot - repairFees;
         const callerFeeRate = config.callerFeeRate;
-        const callerFee = Math.floor(totalLoot * callerFeeRate);
-        const lootAfterCallerFee = totalLoot - callerFee;
+        const callerFee = Math.floor(lootAfterRepairFees * callerFeeRate);
+        const lootAfterCallerFee = lootAfterRepairFees - callerFee;
         const lootPerPerson = Math.floor(lootAfterCallerFee / registeredUsers.length);
 
         // Group users by guild for per-guild totals
@@ -315,7 +317,7 @@ async function handleLootsplitCommand(interaction) {
             .setTitle(`💰 Loot Split - ${contentType}`)
             .setColor(contentConfig.color)
             .addFields(
-                { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
+                { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Repair Fees:** ${repairFees.toLocaleString()} silver\n**After Repairs:** ${lootAfterRepairFees.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
                 { name: '📢 Caller', value: `${caller} - ${callerData.guild}`, inline: false }
             )
             .setTimestamp();
