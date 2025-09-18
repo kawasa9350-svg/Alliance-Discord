@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const mongoose = require('mongoose');
+const fetch = require('node-fetch');
 const config = require('./config');
 
 // Debug logging
@@ -140,7 +141,7 @@ async function handleRegisterCommand(interaction) {
         // Send confirmation
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
-            .setDescription(`Welcome to One Bang!`)
+            .setDescription(`Welcome to Hit the Crown!`)
             .setColor(guildConfig.color)
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
@@ -950,23 +951,135 @@ async function updateSignupEmbed(interaction, session) {
     }
 }
 
-// Error handling
-client.on('error', console.error);
-process.on('unhandledRejection', console.error);
+// Enhanced error handling and memory management
+client.on('error', (error) => {
+    console.error('❌ Discord Client Error:', error);
+});
 
-// Create a simple HTTP server for Render
+client.on('warn', (warning) => {
+    console.warn('⚠️ Discord Client Warning:', warning);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    // Don't exit the process, just log the error
+});
+
+// Memory usage monitoring
+setInterval(() => {
+    const memUsage = process.memoryUsage();
+    const memUsageMB = {
+        rss: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100,
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100,
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100,
+        external: Math.round(memUsage.external / 1024 / 1024 * 100) / 100
+    };
+    
+    // Log memory usage every 30 minutes
+    console.log('📊 Memory Usage (MB):', memUsageMB);
+    
+    // Force garbage collection if memory usage is high
+    if (memUsageMB.heapUsed > 100) { // More than 100MB
+        if (global.gc) {
+            global.gc();
+            console.log('🗑️ Garbage collection triggered');
+        }
+    }
+}, 30 * 60 * 1000); // Every 30 minutes
+
+// Create a robust HTTP server for Render with health checks
 const http = require('http');
+const url = require('url');
+
 const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Discord Bot is running!');
+    const parsedUrl = url.parse(req.url, true);
+    const path = parsedUrl.pathname;
+    
+    // Set CORS headers for monitoring services
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+    
+    if (path === '/health' || path === '/ping' || path === '/') {
+        // Health check endpoint for monitoring services
+        const healthData = {
+            status: 'online',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            discordStatus: client.isReady() ? 'connected' : 'disconnected',
+            guilds: client.guilds?.cache?.size || 0
+        };
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(healthData, null, 2));
+    } else if (path === '/status') {
+        // Simple status endpoint
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('Discord Bot is running!');
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+    }
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`🌐 HTTP server running on port ${PORT}`);
+    console.log(`🏥 Health check available at: http://localhost:${PORT}/health`);
+    console.log(`📊 Status endpoint: http://localhost:${PORT}/status`);
+});
+
+// Self-pinging mechanism to keep bot alive on Render
+let selfPingInterval;
+const startSelfPing = () => {
+    const pingUrl = `http://localhost:${PORT}/health`;
+    
+    selfPingInterval = setInterval(async () => {
+        try {
+            const response = await fetch(pingUrl);
+            if (response.ok) {
+                console.log('🔄 Self-ping successful - Bot is alive');
+            } else {
+                console.log('⚠️ Self-ping failed - Response not OK');
+            }
+        } catch (error) {
+            console.error('❌ Self-ping error:', error.message);
+        }
+    }, 5 * 60 * 1000); // Ping every 5 minutes
+    
+    console.log('🔄 Self-ping mechanism started (every 5 minutes)');
+};
+
+// Start self-ping after server is ready
+server.on('listening', () => {
+    startSelfPing();
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('🛑 Shutting down gracefully...');
+    if (selfPingInterval) {
+        clearInterval(selfPingInterval);
+    }
+    server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+    });
 });
 
 // Login to Discord
 console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
 client.login(config.botToken);
-
