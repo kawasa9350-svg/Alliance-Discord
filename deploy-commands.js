@@ -30,6 +30,10 @@ const commands = [
                     {
                         name: 'Trash Collectors',
                         value: 'Trash Collectors'
+                    },
+                    {
+                        name: 'Arland',
+                        value: 'Arland'
                     }
                 ]
             },
