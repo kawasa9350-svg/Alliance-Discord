@@ -22,6 +22,11 @@ module.exports = {
             roleId: process.env.TRASH_COLLECTORS_ROLE_ID,
             tag: '[TC]',
             color: '#4ECDC4'
+        },
+        'Arland': {
+            roleId: process.env.ARLAND_ROLE_ID,
+            tag: '[ARL]',
+            color: '#4ECDC4'
         }
     },
 
@@ -45,7 +50,7 @@ module.exports = {
     },
 
     // Caller Fee Rate
-    callerFeeRate: parseFloat(process.env.CALLER_FEE_RATE) || 0.08,
+    callerFeeRate: parseFloat(process.env.CALLER_FEE_RATE) || 0.05,
     
     // Required role ID to get guild roles (set to null if no role required)
     requiredRoleId: process.env.REQUIRED_ROLE_ID,
