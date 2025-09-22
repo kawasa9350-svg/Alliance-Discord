@@ -141,7 +141,7 @@ async function handleRegisterCommand(interaction) {
         // Send confirmation
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
-            .setDescription(`Welcome to One Bang!`)
+            .setDescription(`Welcome to Hit the Crown!`)
             .setColor(guildConfig.color)
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
@@ -408,49 +408,35 @@ async function handleCompCreateCommand(interaction) {
 // Comp list command handler
 async function handleCompListCommand(interaction) {
     try {
-        // Get all comps from database
-        const comps = await Composition.find({}).sort({ createdAt: -1 }).limit(20);
-        
-        if (comps.length === 0) {
-            const embed = new EmbedBuilder()
-                .setTitle('📋 Saved Comps')
-                .setDescription('No comps found. Create your first comp with `/comp create`!')
-                .setColor('#0099ff')
-                .setTimestamp();
-            
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+        const compName = interaction.options.getString('comp');
+
+        if (!compName) {
+            await interaction.reply({
+                content: '❌ Please pick a comp, e.g. `/comp list comp:<your comp>`',
+                flags: 64
+            });
             return;
         }
-        
-        // Create embed with comp list
+
+        const comp = await Composition.findOne({ name: compName });
+        if (!comp) {
+            await interaction.reply({
+                content: `❌ Comp "${compName}" not found.`,
+                flags: 64
+            });
+            return;
+        }
+
+        const rolesList = (comp.roles && comp.roles.length > 0)
+            ? comp.roles.map((role, index) => `${index + 1}. ${role}`).join('\n')
+            : 'No builds saved for this comp.';
+
         const embed = new EmbedBuilder()
-            .setTitle('📋 Saved Comps')
-            .setDescription(`Found ${comps.length} saved comp${comps.length === 1 ? '' : 's'}`)
+            .setTitle(`📋 ${comp.name}`)
+            .addFields({ name: 'Available Builds', value: rolesList })
             .setColor('#0099ff')
             .setTimestamp();
-        
-        // Add each comp as a field
-        comps.forEach((comp, index) => {
-            const buildList = comp.roles.length > 0 
-                ? comp.roles.map((role, i) => `${i + 1}. ${role}`).join('\n')
-                : 'No builds';
-            
-            const truncatedList = buildList.length > 1000 
-                ? buildList.substring(0, 1000) + '...' 
-                : buildList;
-            
-            embed.addFields({
-                name: `${index + 1}. ${comp.name}`,
-                value: `**Builds (${comp.roles.length}):**\n${truncatedList}\n\n**Created by:** <@${comp.createdBy.discordId}>\n**Date:** ${comp.createdAt.toLocaleDateString()}`,
-                inline: false
-            });
-        });
-        
-        // Add pagination info if there are many comps
-        if (comps.length === 20) {
-            embed.setFooter({ text: 'Showing latest 20 comps. More may be available.' });
-        }
-        
+
         await interaction.reply({ embeds: [embed], ephemeral: true });
         
     } catch (error) {
@@ -876,6 +862,9 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'signup') {
         await handleSignupAutocomplete(interaction);
+    } else if (interaction.commandName === 'comp') {
+        // Reuse same autocomplete for comp list subcommand
+        await handleSignupAutocomplete(interaction);
     }
 });
 
@@ -1083,4 +1072,3 @@ process.on('SIGINT', () => {
 // Login to Discord
 console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
 client.login(config.botToken);
-

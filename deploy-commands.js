@@ -114,8 +114,17 @@ const commands = [
             },
             {
                 name: 'list',
-                description: 'List all saved comps',
-                type: 1 // SUB_COMMAND type
+                description: 'Show builds for a specific comp',
+                type: 1, // SUB_COMMAND type
+                options: [
+                    {
+                        name: 'comp',
+                        description: 'Select a comp to view its builds',
+                        type: 3, // STRING type
+                        required: true,
+                        autocomplete: true
+                    }
+                ]
             }
         ]
     },
