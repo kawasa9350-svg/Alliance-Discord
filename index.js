@@ -54,10 +54,6 @@ client.on('interactionCreate', async (interaction) => {
         } else if (commandName === 'signup') {
             await handleSignupCommand(interaction);
         }
-    } else if (interaction.isButton()) {
-        await handleButtonInteraction(interaction);
-    } else if (interaction.isModalSubmit()) {
-        await handleModalInteraction(interaction);
     }
 });
 
@@ -192,14 +188,14 @@ async function handleLootsplitCommand(interaction) {
 
         // Parse mentioned users from the users input string
         const mentionRegex = /<@!?(\d+)>/g;
-        const mentionedUserIds = [];
+        const userIds = [];
         let match;
         
         while ((match = mentionRegex.exec(usersInput)) !== null) {
-            mentionedUserIds.push(match[1]);
+            userIds.push(match[1]);
         }
 
-        if (mentionedUserIds.length === 0) {
+        if (userIds.length === 0) {
             await interaction.reply({ 
                 content: '❌ Please mention the users participating in the loot split.',
                 flags: 64 // Ephemeral flag
@@ -228,7 +224,7 @@ async function handleLootsplitCommand(interaction) {
 
         // Fetch the mentioned users
         const mentionedUsers = new Map();
-        for (const userId of mentionedUserIds) {
+        for (const userId of userIds) {
             try {
                 const user = await client.users.fetch(userId);
                 mentionedUsers.set(userId, user);
@@ -251,10 +247,10 @@ async function handleLootsplitCommand(interaction) {
         }
 
         // Automatically add caller to participants if not already present
-        const callerAlreadyInParticipants = mentionedUserIds.includes(callerId);
+        const callerAlreadyInParticipants = userIds.includes(callerId);
         if (!callerAlreadyInParticipants) {
             // Add caller to the participants list
-            mentionedUserIds.push(callerId);
+            userIds.push(callerId);
             mentionedUsers.set(callerId, caller);
         }
 
@@ -349,17 +345,7 @@ async function handleLootsplitCommand(interaction) {
 
         embed.addFields({ name: '🏛️ Guild Breakdown', value: perGuildTotals, inline: false });
 
-        // Create edit button
-        const editButton = new ButtonBuilder()
-            .setCustomId(`edit_lootsplit_${interaction.id}`)
-            .setLabel('Edit Lootsplit')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('✏️');
-
-        const row = new ActionRowBuilder()
-            .addComponents(editButton);
-
-        await interaction.reply({ embeds: [embed], components: [row] });
+        await interaction.reply({ embeds: [embed] });
 
     } catch (error) {
         console.error('Error in lootsplit command:', error);
@@ -962,324 +948,9 @@ async function updateSignupEmbed(interaction, session) {
     }
 }
 
-// Button interaction handler
-async function handleButtonInteraction(interaction) {
-    try {
-        const customId = interaction.customId;
-        
-        if (customId.startsWith('edit_lootsplit_')) {
-            await handleEditLootsplitButton(interaction);
-        }
-    } catch (error) {
-        console.error('Error in button interaction:', error);
-        await interaction.reply({ 
-            content: '❌ An error occurred while processing the button interaction. Please try again later.',
-            ephemeral: true 
-        });
-    }
-}
 
-// Edit lootsplit button handler
-async function handleEditLootsplitButton(interaction) {
-    try {
-        // Check if user has permission to edit (you can customize this logic)
-        const hasPermission = interaction.member.permissions.has('ManageMessages') || 
-                             interaction.member.permissions.has('Administrator') ||
-                             interaction.user.id === interaction.message.interaction?.user?.id;
-        
-        if (!hasPermission) {
-            await interaction.reply({ 
-                content: '❌ You do not have permission to edit this lootsplit.',
-                ephemeral: true 
-            });
-            return;
-        }
 
-        // Create a modal for editing the lootsplit
-        const modal = new ModalBuilder()
-            .setCustomId(`edit_lootsplit_modal_${interaction.id}`)
-            .setTitle('Edit Lootsplit');
 
-        const totalLootInput = new TextInputBuilder()
-            .setCustomId('total_loot')
-            .setLabel('Total Loot (silver)')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Enter total loot value in silver')
-            .setRequired(true);
-
-        const repairFeesInput = new TextInputBuilder()
-            .setCustomId('repair_fees')
-            .setLabel('Repair Fees (silver)')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Enter repair fees in silver')
-            .setRequired(true);
-
-        const usersInput = new TextInputBuilder()
-            .setCustomId('users')
-            .setLabel('Participants')
-            .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('Mention all participants (e.g., @user1 @user2 @user3)')
-            .setRequired(true);
-
-        const callerInput = new TextInputBuilder()
-            .setCustomId('caller')
-            .setLabel('Caller')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Mention the caller (e.g., @caller)')
-            .setRequired(true);
-
-        const contentTypeInput = new TextInputBuilder()
-            .setCustomId('content_type')
-            .setLabel('Content Type')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('BZ Roam, Shitters Roam, Dungeons, etc.')
-            .setRequired(true);
-
-        const firstActionRow = new ActionRowBuilder().addComponents(totalLootInput);
-        const secondActionRow = new ActionRowBuilder().addComponents(repairFeesInput);
-        const thirdActionRow = new ActionRowBuilder().addComponents(usersInput);
-        const fourthActionRow = new ActionRowBuilder().addComponents(callerInput);
-        const fifthActionRow = new ActionRowBuilder().addComponents(contentTypeInput);
-
-        modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow, fifthActionRow);
-
-        await interaction.showModal(modal);
-
-    } catch (error) {
-        console.error('Error in edit lootsplit button:', error);
-        await interaction.reply({ 
-            content: '❌ An error occurred while opening the edit form. Please try again later.',
-            ephemeral: true 
-        });
-    }
-}
-
-// Modal interaction handler
-async function handleModalInteraction(interaction) {
-    try {
-        const customId = interaction.customId;
-        
-        if (customId.startsWith('edit_lootsplit_modal_')) {
-            await handleEditLootsplitModal(interaction);
-        }
-    } catch (error) {
-        console.error('Error in modal interaction:', error);
-        await interaction.reply({ 
-            content: '❌ An error occurred while processing the form. Please try again later.',
-            ephemeral: true 
-        });
-    }
-}
-
-// Edit lootsplit modal handler
-async function handleEditLootsplitModal(interaction) {
-    try {
-        // Get the form data
-        const totalLoot = parseInt(interaction.fields.getTextInputValue('total_loot'));
-        const repairFees = parseInt(interaction.fields.getTextInputValue('repair_fees'));
-        const usersInput = interaction.fields.getTextInputValue('users');
-        const callerInput = interaction.fields.getTextInputValue('caller');
-        const contentType = interaction.fields.getTextInputValue('content_type');
-
-        // Validate inputs
-        if (isNaN(totalLoot) || isNaN(repairFees)) {
-            await interaction.reply({ 
-                content: '❌ Total loot and repair fees must be valid numbers.',
-                ephemeral: true 
-            });
-            return;
-        }
-
-        if (totalLoot < 0 || repairFees < 0) {
-            await interaction.reply({ 
-                content: '❌ Total loot and repair fees must be positive numbers.',
-                ephemeral: true 
-            });
-            return;
-        }
-
-        // Get content type config
-        const contentConfig = config.contentTypes[contentType];
-        if (!contentConfig) {
-            await interaction.reply({ 
-                content: '❌ Invalid content type selected.',
-                ephemeral: true 
-            });
-            return;
-        }
-
-        // Parse mentioned users from the users input string
-        const mentionRegex = /<@!?(\d+)>/g;
-        const mentionedUserIds = [];
-        let match;
-        
-        while ((match = mentionRegex.exec(usersInput)) !== null) {
-            mentionedUserIds.push(match[1]);
-        }
-
-        if (mentionedUserIds.length === 0) {
-            await interaction.reply({ 
-                content: '❌ Please mention the users participating in the loot split.',
-                ephemeral: true 
-            });
-            return;
-        }
-
-        // Parse caller from the caller input string
-        const callerMatch = callerInput.match(/<@!?(\d+)>/);
-        if (!callerMatch) {
-            await interaction.reply({ 
-                content: '❌ Please mention the caller user.',
-                ephemeral: true 
-            });
-            return;
-        }
-        const callerId = callerMatch[1];
-
-        // Fetch the mentioned users
-        const mentionedUsers = new Map();
-        for (const userId of mentionedUserIds) {
-            try {
-                const user = await client.users.fetch(userId);
-                mentionedUsers.set(userId, user);
-            } catch (error) {
-                console.error(`Error fetching user ${userId}:`, error);
-            }
-        }
-
-        // Fetch caller
-        let caller;
-        try {
-            caller = await client.users.fetch(callerId);
-        } catch (error) {
-            console.error(`Error fetching caller ${callerId}:`, error);
-            await interaction.reply({ 
-                content: '❌ Error fetching caller user.',
-                ephemeral: true 
-            });
-            return;
-        }
-
-        // Automatically add caller to participants if not already present
-        const callerAlreadyInParticipants = mentionedUserIds.includes(callerId);
-        if (!callerAlreadyInParticipants) {
-            // Add caller to the participants list
-            mentionedUserIds.push(callerId);
-            mentionedUsers.set(callerId, caller);
-        }
-
-        // Check if all mentioned users (including potentially added caller) are registered
-        const unregisteredUsers = [];
-        const registeredUsers = [];
-
-        for (const [userId, user] of mentionedUsers) {
-            const userData = await User.findOne({ discordId: userId });
-            if (userData) {
-                registeredUsers.push({
-                    user: user,
-                    ingameName: userData.ingameName,
-                    guild: userData.guild
-                });
-            } else {
-                unregisteredUsers.push(user);
-            }
-        }
-
-        // Check if caller is registered
-        const callerData = await User.findOne({ discordId: callerId });
-        if (!callerData) {
-            await interaction.reply({ 
-                content: `❌ The caller ${caller} needs to register first.\n\nPlease use \`/register\` to register before participating in loot splits.`,
-                ephemeral: true 
-            });
-            return;
-        }
-
-        // If there are unregistered users, show error
-        if (unregisteredUsers.length > 0) {
-            const unregisteredMentions = unregisteredUsers.map(user => `<@${user.id}>`).join(', ');
-            await interaction.reply({ 
-                content: `❌ The following users need to register first: ${unregisteredMentions}\n\nPlease use \`/register\` to register before participating in loot splits.`,
-                ephemeral: true 
-            });
-            return;
-        }
-
-        // Calculate loot split (repair fees subtracted first, then caller fee, no guild tax)
-        const lootAfterRepairFees = totalLoot - repairFees;
-        const callerFeeRate = config.callerFeeRate;
-        const callerFee = Math.floor(lootAfterRepairFees * callerFeeRate);
-        const lootAfterCallerFee = lootAfterRepairFees - callerFee;
-        const lootPerPerson = Math.floor(lootAfterCallerFee / registeredUsers.length);
-
-        // Group users by guild for per-guild totals
-        const guildTotals = {};
-        const guildPlayerCounts = {};
-        
-        // Count players per guild
-        registeredUsers.forEach(user => {
-            if (!guildPlayerCounts[user.guild]) {
-                guildPlayerCounts[user.guild] = 0;
-            }
-            guildPlayerCounts[user.guild]++;
-        });
-        
-        // Calculate per-guild totals (player payouts + caller fee if caller is from that guild)
-        Object.entries(guildPlayerCounts).forEach(([guild, playerCount]) => {
-            const totalPerGuild = lootPerPerson * playerCount;
-            // Add caller fee to the caller's guild
-            if (guild === callerData.guild) {
-                guildTotals[guild] = totalPerGuild + callerFee;
-            } else {
-                guildTotals[guild] = totalPerGuild;
-            }
-        });
-
-        // Create embed
-        const embed = new EmbedBuilder()
-            .setTitle(`💰 Loot Split - ${contentType} (Edited)`)
-            .setColor(contentConfig.color)
-            .addFields(
-                { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Repair Fees:** ${repairFees.toLocaleString()} silver\n**After Repairs:** ${lootAfterRepairFees.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
-                { name: '📢 Caller', value: `${caller} - ${callerData.guild}`, inline: false }
-            )
-            .setTimestamp();
-
-        // Add players list as proper mentions only
-        const playersList = registeredUsers.map(user => {
-            return `<@${user.user.id}> - ${user.guild}`;
-        }).join('\n');
-
-        embed.addFields({ name: '👥 Participants', value: playersList, inline: false });
-
-        // Add per guild totals
-        const perGuildTotals = Object.entries(guildTotals)
-            .map(([guild, total]) => `**${guild}:** ${total.toLocaleString()} silver (${guildPlayerCounts[guild]} players)`)
-            .join('\n');
-
-        embed.addFields({ name: '🏛️ Guild Breakdown', value: perGuildTotals, inline: false });
-
-        // Create edit button
-        const editButton = new ButtonBuilder()
-            .setCustomId(`edit_lootsplit_${interaction.id}`)
-            .setLabel('Edit Lootsplit')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('✏️');
-
-        const row = new ActionRowBuilder()
-            .addComponents(editButton);
-
-        // Update the original message
-        await interaction.update({ embeds: [embed], components: [row] });
-
-    } catch (error) {
-        console.error('Error in edit lootsplit modal:', error);
-        await interaction.reply({ 
-            content: '❌ An error occurred while processing the edited lootsplit. Please try again later.',
-            ephemeral: true 
-        });
-    }
-}
 
 // Enhanced error handling and memory management
 client.on('error', (error) => {
