@@ -141,7 +141,7 @@ async function handleRegisterCommand(interaction) {
         // Send confirmation
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
-            .setDescription(`Welcome to Onew Bang!`)
+            .setDescription(`Welcome to One Bang!`)
             .setColor(guildConfig.color)
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
@@ -1084,3 +1084,4 @@ process.on('SIGINT', () => {
 // Login to Discord
 console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
 client.login(config.botToken);
+
