@@ -32,8 +32,8 @@ const commands = [
                         value: 'Trash Collectors'
                     },
                     {
-                        name: 'Arland',
-                        value: 'Arland'
+                        name: 'The Back Hand',
+                        value: 'The Back Hand'
                     }
                 ]
             },
@@ -181,3 +181,4 @@ const rest = new REST({ version: '10' }).setToken(config.botToken);
         console.error('❌ Error deploying commands:', error);
     }
 })();
+
