@@ -23,9 +23,9 @@ module.exports = {
             tag: '[TC]',
             color: '#4ECDC4'
         },
-        'Arland': {
-            roleId: process.env.ARLAND_ROLE_ID,
-            tag: '[ARL]',
+        'The Back Hand': {
+            roleId: process.env.THE_BACK_HAND_ROLE_ID,
+            tag: '[TBH]',
             color: '#4ECDC4'
         }
     },
@@ -59,3 +59,4 @@ module.exports = {
     prefix: process.env.PREFIX || '!',
     embedColor: process.env.EMBED_COLOR || '#0099ff'
 };
+
