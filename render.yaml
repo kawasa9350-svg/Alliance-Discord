@@ -18,7 +18,7 @@ services:
         sync: false
       - key: TRASH_COLLECTORS_ROLE_ID
         sync: false
-      - key: ARLAND_ROLE_ID
+      - key: TBH_ROLE_ID
         sync: false
       - key: REQUIRED_ROLE_ID
         sync: false

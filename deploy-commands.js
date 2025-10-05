@@ -181,4 +181,3 @@ const rest = new REST({ version: '10' }).setToken(config.botToken);
         console.error('❌ Error deploying commands:', error);
     }
 })();
-

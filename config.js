@@ -24,7 +24,7 @@ module.exports = {
             color: '#4ECDC4'
         },
         'The Back Hand': {
-            roleId: process.env.THE_BACK_HAND_ROLE_ID,
+            roleId: process.env.TBH_ROLE_ID,
             tag: '[TBH]',
             color: '#4ECDC4'
         }
@@ -59,4 +59,3 @@ module.exports = {
     prefix: process.env.PREFIX || '!',
     embedColor: process.env.EMBED_COLOR || '#0099ff'
 };
-
