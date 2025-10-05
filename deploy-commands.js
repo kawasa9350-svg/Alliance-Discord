@@ -1,182 +1,79 @@
 const { REST, Routes } = require('discord.js');
-const config = require('./config');
+const fs = require('fs');
+const path = require('path');
 
-// Check if required environment variables are set
-if (!config.botToken) {
-    console.error('❌ BOT_TOKEN environment variable is not set!');
-    process.exit(1);
-}
+// Load configuration
+const config = require('./config.js');
 
-if (!config.clientId) {
-    console.error('❌ CLIENT_ID environment variable is not set!');
-    process.exit(1);
-}
+const commands = [];
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-const commands = [
-    {
-        name: 'register',
-        description: 'Register for Albion Online Alliance and select your guild',
-        options: [
-            {
-                name: 'guild',
-                description: 'Select your guild',
-                type: 3, // STRING type
-                required: true,
-                choices: [
-                    {
-                        name: 'Phoenix Rebels',
-                        value: 'Phoenix Rebels'
-                    },
-                    {
-                        name: 'Trash Collectors',
-                        value: 'Trash Collectors'
-                    },
-                    {
-                        name: 'The Back Hand',
-                        value: 'The Back Hand'
-                    }
-                ]
-            },
-            {
-                name: 'ingame_name',
-                description: 'Your in-game character name',
-                type: 3, // STRING type
-                required: true
-            }
-        ]
-    },
-    {
-        name: 'lootsplit',
-        description: 'Calculate loot split with caller fees (no guild tax)',
-        options: [
-            {
-                name: 'content_type',
-                description: 'Type of content being run',
-                type: 3, // STRING type
-                required: true,
-                choices: [
-                    { name: 'BZ Roam', value: 'BZ Roam' },
-                    { name: 'Shitters Roam', value: 'Shitters Roam' },
-                    { name: 'Dungeons', value: 'Dungeons' },
-                    { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
-                    { name: 'Hellgate', value: 'Hellgate' },
-                ]
-            },
-            {
-                name: 'users',
-                description: 'Mention the users participating (e.g., @user1 @user2 @user3)',
-                type: 3, // STRING type
-                required: true
-            },
-            {
-                name: 'caller',
-                description: 'Mention the caller user (e.g., @caller)',
-                type: 3, // STRING type
-                required: true
-            },
-            {
-                name: 'repair_fees',
-                description: 'Repair fees to subtract from total loot (in silver)',
-                type: 4, // INTEGER type
-                required: true
-            },
-            {
-                name: 'total_loot',
-                description: 'Total loot value in silver',
-                type: 4, // INTEGER type
-                required: true
-            }
-        ]
-    },
-    {
-        name: 'comp',
-        description: 'Create a comp with roles and slots',
-        options: [
-            {
-                name: 'create',
-                description: 'Create a new comp',
-                type: 1, // SUB_COMMAND type
-                options: [
-                    {
-                        name: 'content_type',
-                        description: 'Type of content for this comp',
-                        type: 3, // STRING type
-                        required: true,
-                        choices: [
-                            { name: 'BZ Roam', value: 'BZ Roam' },
-                            { name: 'Shitters Roam', value: 'Shitters Roam' },
-                            { name: 'Dungeons', value: 'Dungeons' },
-                            { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
-                            { name: 'Hellgate', value: 'Hellgate' }
-                        ]
-                    }
-                ]
-            },
-            {
-                name: 'list',
-                description: 'Show builds for a specific comp',
-                type: 1, // SUB_COMMAND type
-                options: [
-                    {
-                        name: 'comp',
-                        description: 'Select a comp to view its builds',
-                        type: 3, // STRING type
-                        required: true,
-                        autocomplete: true
-                    }
-                ]
-            }
-        ]
-    },
-    {
-        name: 'signup',
-        description: 'Sign up for roles in a comp',
-        options: [
-            {
-                name: 'comp',
-                description: 'Select a comp to sign up for',
-                type: 3, // STRING type
-                required: true,
-                autocomplete: true
-            }
-        ]
+// Load command data
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    
+    if ('data' in command && 'execute' in command) {
+        commands.push(command.data.toJSON());
+        console.log(`📝 Loaded command: ${command.data.name}`);
+    } else {
+        console.log(`⚠️ Command at ${filePath} is missing required properties`);
     }
-];
+}
 
-const rest = new REST({ version: '10' }).setToken(config.botToken);
+// Create REST instance
+const rest = new REST({ version: '10' }).setToken(config.bot.token);
 
+// Deploy commands
 (async () => {
     try {
-        console.log('🔄 Started refreshing application (/) commands.');
-        
-        // Clear existing global commands first
-        console.log('🗑️  Clearing existing global commands...');
-        await rest.put(
-            Routes.applicationCommands(config.clientId),
-            { body: [] },
-        );
-        console.log('✅ Cleared global commands.');
-        
-        // Deploy new global commands
-        console.log('📤 Deploying new global commands...');
-        await rest.put(
-            Routes.applicationCommands(config.clientId),
-            { body: commands },
-        );
-        console.log('✅ Successfully deployed global application (/) commands.');
+        console.log(`🚀 Started refreshing ${commands.length} application (/) commands.`);
 
-        // Deploy to guild-specific commands (instant updates)
-        if (config.testGuildId) {
-            console.log('📤 Deploying guild-specific commands for instant updates...');
-            await rest.put(
-                Routes.applicationGuildCommands(config.clientId, config.testGuildId),
+        let data;
+        
+        // Determine target from env override or config
+        const envTarget = (process.env.DEPLOY_TARGET || '').toLowerCase(); // 'guild' or 'global'
+        const shouldUseGuild = envTarget === 'guild' || (
+            envTarget !== 'global' &&
+            config.development && config.development.useGuildCommands && config.development.guildId && config.development.guildId !== "YOUR_TEST_GUILD_ID_HERE"
+        );
+
+        if (shouldUseGuild) {
+            console.log(`🎯 Deploying commands to guild: ${config.development.guildId}`);
+            console.log(`⚡ Commands will be available INSTANTLY in this guild!`);
+            
+            // Deploy commands to specific guild (instant updates)
+            data = await rest.put(
+                Routes.applicationGuildCommands(config.bot.applicationId, config.development.guildId),
                 { body: commands },
             );
-            console.log('✅ Successfully deployed guild-specific (/) commands for testing.');
         } else {
-            console.log('⚠️  No testGuildId configured. Add your server ID to config.js for instant command updates.');
+            console.log(`🌍 Deploying commands globally (may take up to 1 hour to update)`);
+            
+            // Deploy commands globally
+            data = await rest.put(
+                Routes.applicationCommands(config.bot.applicationId),
+                { body: commands },
+            );
         }
 
+        console.log(`✅ Successfully reloaded ${data.length} application (/) commands.`);
+        
+        // List deployed commands
+        console.log('\n📋 Deployed Commands:');
+        data.forEach(command => {
+            console.log(`  - /${command.name}: ${command.description}`);
+        });
+        
+        if (config.development && config.development.useGuildCommands && config.development.guildId && config.development.guildId !== "YOUR_TEST_GUILD_ID_HERE") {
+            console.log('\n🎯 Commands deployed to your test guild!');
+            console.log('⚡ They are available INSTANTLY - no waiting required!');
+        } else {
+            console.log('\n🌍 Commands deployed globally');
+            console.log('⏰ May take up to 1 hour to appear in all servers');
+        }
+        
     } catch (error) {
         console.error('❌ Error deploying commands:', error);
     }
