@@ -15,12 +15,30 @@ const User = require('./models/User');
 const Composition = require('./models/Composition');
 const SignupSession = require('./models/SignupSession');
 
-// Create Discord client
+// Create Discord client with enhanced connection settings
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.MessageContent
-    ]
+    ],
+    // Enhanced connection settings for better stability
+    rest: {
+        timeout: 30000, // 30 seconds timeout
+        retries: 3
+    },
+    // WebSocket settings
+    ws: {
+        large_threshold: 250,
+        compress: true
+    },
+    // Presence settings
+    presence: {
+        status: 'online',
+        activities: [{
+            name: 'Albion Online Alliance',
+            type: 0 // Playing
+        }]
+    }
 });
 
 // Create commands collection
@@ -38,6 +56,51 @@ mongoose.connect(config.mongoUri)
 client.once('ready', () => {
     console.log(`✅ Bot is online as ${client.user.tag}`);
     console.log(`📊 Serving ${client.guilds.cache.size} servers`);
+    console.log(`🔗 Bot ID: ${client.user.id}`);
+    console.log(`🌐 Gateway: ${client.ws.gateway}`);
+    
+    // Set bot presence to show it's active
+    client.user.setPresence({
+        activities: [{
+            name: 'Albion Online Alliance',
+            type: 0 // Playing
+        }],
+        status: 'online'
+    });
+});
+
+// Connection status monitoring
+client.on('shardReady', (id) => {
+    console.log(`🟢 Shard ${id} is ready`);
+});
+
+client.on('shardReconnecting', (id) => {
+    console.log(`🔄 Shard ${id} is reconnecting...`);
+});
+
+client.on('shardResumed', (id) => {
+    console.log(`✅ Shard ${id} resumed`);
+});
+
+client.on('shardDisconnect', (event, id) => {
+    console.log(`🔴 Shard ${id} disconnected:`, event);
+});
+
+client.on('shardError', (error, id) => {
+    console.error(`❌ Shard ${id} error:`, error);
+});
+
+// Handle disconnection and reconnection
+client.on('disconnect', () => {
+    console.log('🔌 Bot disconnected from Discord');
+});
+
+client.on('reconnecting', () => {
+    console.log('🔄 Bot reconnecting to Discord...');
+});
+
+client.on('resume', () => {
+    console.log('✅ Bot reconnected to Discord');
 });
 
 // Slash command interaction handler
@@ -955,11 +1018,66 @@ async function updateSignupEmbed(interaction, session) {
 // Enhanced error handling and memory management
 client.on('error', (error) => {
     console.error('❌ Discord Client Error:', error);
+    // Don't exit the process, let Discord.js handle reconnection
 });
 
 client.on('warn', (warning) => {
     console.warn('⚠️ Discord Client Warning:', warning);
 });
+
+// Handle rate limits
+client.on('rateLimit', (rateLimitData) => {
+    console.warn('⏱️ Rate limited:', rateLimitData);
+});
+
+// Handle invalid session
+client.on('invalidSession', () => {
+    console.log('🔄 Invalid session, reconnecting...');
+});
+
+// Connection monitoring and auto-reconnect
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+let reconnectTimeout;
+
+const attemptReconnect = () => {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+        console.error('❌ Max reconnection attempts reached. Bot will not reconnect automatically.');
+        return;
+    }
+    
+    reconnectAttempts++;
+    console.log(`🔄 Attempting to reconnect... (${reconnectAttempts}/${maxReconnectAttempts})`);
+    
+    // Clear any existing timeout
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+    }
+    
+    // Attempt to reconnect after a delay
+    reconnectTimeout = setTimeout(() => {
+        if (!client.isReady()) {
+            console.log('🔄 Forcing reconnection...');
+            client.destroy().then(() => {
+                client.login(config.botToken).catch(error => {
+                    console.error('❌ Reconnection failed:', error);
+                    attemptReconnect(); // Try again
+                });
+            });
+        }
+    }, 5000 * reconnectAttempts); // Exponential backoff
+};
+
+// Monitor connection status
+setInterval(() => {
+    if (!client.isReady()) {
+        console.log('⚠️ Bot is not ready, attempting reconnection...');
+        attemptReconnect();
+    } else {
+        // Reset reconnect attempts on successful connection
+        reconnectAttempts = 0;
+    }
+}, 30000); // Check every 30 seconds
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
@@ -972,7 +1090,7 @@ process.on('uncaughtException', (error) => {
     // Don't exit the process, just log the error
 });
 
-// Memory usage monitoring
+// Memory usage monitoring and connection health checks
 setInterval(() => {
     const memUsage = process.memoryUsage();
     const memUsageMB = {
@@ -982,17 +1100,39 @@ setInterval(() => {
         external: Math.round(memUsage.external / 1024 / 1024 * 100) / 100
     };
     
-    // Log memory usage every 30 minutes
+    // Log memory usage and connection status every 10 minutes
     console.log('📊 Memory Usage (MB):', memUsageMB);
+    console.log('🔗 Discord Status:', client.isReady() ? 'Connected' : 'Disconnected');
+    console.log('⏱️ Uptime:', Math.round(process.uptime() / 60), 'minutes');
     
     // Force garbage collection if memory usage is high
-    if (memUsageMB.heapUsed > 100) { // More than 100MB
+    if (memUsageMB.heapUsed > 150) { // More than 150MB
         if (global.gc) {
             global.gc();
             console.log('🗑️ Garbage collection triggered');
         }
     }
-}, 30 * 60 * 1000); // Every 30 minutes
+    
+    // Check if bot is still connected to Discord
+    if (!client.isReady()) {
+        console.log('⚠️ Bot appears disconnected, attempting reconnection...');
+        attemptReconnect();
+    }
+}, 10 * 60 * 1000); // Every 10 minutes
+
+// Additional health check for Discord connection
+setInterval(() => {
+    if (client.isReady()) {
+        // Update presence to show bot is active
+        client.user.setPresence({
+            activities: [{
+                name: `Albion Online Alliance | ${client.guilds.cache.size} servers`,
+                type: 0 // Playing
+            }],
+            status: 'online'
+        });
+    }
+}, 5 * 60 * 1000); // Every 5 minutes
 
 // Create a robust HTTP server for Render with health checks
 const http = require('http');
@@ -1015,16 +1155,30 @@ const server = http.createServer((req, res) => {
     
     if (path === '/health' || path === '/ping' || path === '/') {
         // Health check endpoint for monitoring services
+        const memUsage = process.memoryUsage();
         const healthData = {
-            status: 'online',
+            status: client.isReady() ? 'online' : 'offline',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            memory: process.memoryUsage(),
-            discordStatus: client.isReady() ? 'connected' : 'disconnected',
-            guilds: client.guilds?.cache?.size || 0
+            memory: {
+                rss: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100,
+                heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100,
+                heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100,
+                external: Math.round(memUsage.external / 1024 / 1024 * 100) / 100
+            },
+            discord: {
+                status: client.isReady() ? 'connected' : 'disconnected',
+                guilds: client.guilds?.cache?.size || 0,
+                ping: client.ws?.ping || 'N/A',
+                gateway: client.ws?.gateway || 'N/A'
+            },
+            reconnectAttempts: reconnectAttempts,
+            version: process.version,
+            platform: process.platform
         };
         
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const statusCode = client.isReady() ? 200 : 503;
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(healthData, null, 2));
     } else if (path === '/status') {
         // Simple status endpoint
@@ -1070,18 +1224,60 @@ server.on('listening', () => {
 });
 
 // Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('🛑 Shutting down gracefully...');
+const gracefulShutdown = (signal) => {
+    console.log(`🛑 Received ${signal}, shutting down gracefully...`);
+    
+    // Clear all intervals
     if (selfPingInterval) {
         clearInterval(selfPingInterval);
     }
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+    }
+    
+    // Destroy Discord client
+    if (client.isReady()) {
+        client.destroy();
+        console.log('✅ Discord client destroyed');
+    }
+    
+    // Close HTTP server
     server.close(() => {
-        console.log('✅ Server closed');
+        console.log('✅ HTTP server closed');
         process.exit(0);
     });
-});
+    
+    // Force exit after 10 seconds
+    setTimeout(() => {
+        console.log('⚠️ Forced shutdown after timeout');
+        process.exit(1);
+    }, 10000);
+};
 
-// Login to Discord
-console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
-client.login(config.botToken);
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Login to Discord with retry logic
+const loginWithRetry = async (retries = 3) => {
+    try {
+        console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
+        await client.login(config.botToken);
+        console.log('✅ Successfully logged in to Discord');
+    } catch (error) {
+        console.error('❌ Login failed:', error.message);
+        
+        if (retries > 0) {
+            console.log(`🔄 Retrying login in 5 seconds... (${retries} attempts left)`);
+            setTimeout(() => {
+                loginWithRetry(retries - 1);
+            }, 5000);
+        } else {
+            console.error('❌ Max login attempts reached. Exiting...');
+            process.exit(1);
+        }
+    }
+};
+
+// Start the bot
+loginWithRetry();
 

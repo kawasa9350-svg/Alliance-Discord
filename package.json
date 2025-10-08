@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "monitor": "node monitor-bot.js"
   },
   "keywords": ["discord", "bot", "albion", "mongodb"],
   "author": "",
