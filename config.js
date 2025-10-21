@@ -22,11 +22,6 @@ module.exports = {
             roleId: process.env.TRASH_COLLECTORS_ROLE_ID,
             tag: '[TC]',
             color: '#4ECDC4'
-        },
-        'The Back Hand': {
-            roleId: process.env.TBH_ROLE_ID,
-            tag: '[TBH]',
-            color: '#4ECDC4'
         }
     },
 

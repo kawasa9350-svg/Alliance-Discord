@@ -18,8 +18,6 @@ services:
         sync: false
       - key: TRASH_COLLECTORS_ROLE_ID
         sync: false
-      - key: TBH_ROLE_ID
-        sync: false
       - key: REQUIRED_ROLE_ID
         sync: false
       - key: PREFIX
