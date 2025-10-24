@@ -31,6 +31,10 @@ const commands = [
                         name: 'Trash Collectors',
                         value: 'Trash Collectors'
                     },
+                    {
+                        name: 'Riders of Rohirrim',
+                        value: 'Riders of Rohirrim'
+                    },
                 ]
             },
             {
