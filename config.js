@@ -8,6 +8,18 @@ module.exports = {
     // Test Server ID for instant command updates (get this from Discord server settings)
     testGuildId: process.env.TEST_GUILD_ID,
     
+    // Bot configuration object (for compatibility with deploy-commands.js)
+    bot: {
+        token: process.env.BOT_TOKEN || process.env.DISCORD_BOT_TOKEN,
+        applicationId: process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID
+    },
+    
+    // Development configuration
+    development: {
+        useGuildCommands: !!process.env.TEST_GUILD_ID,
+        guildId: process.env.TEST_GUILD_ID
+    },
+    
     // MongoDB Configuration
     mongoUri: process.env.MONGO_URI,
     

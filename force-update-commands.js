@@ -75,6 +75,12 @@ const commands = [
                 required: true
             },
             {
+                name: 'repair_fees',
+                description: 'Total repair fees in silver',
+                type: 4, // INTEGER type
+                required: true
+            },
+            {
                 name: 'total_loot',
                 description: 'Total loot value in silver',
                 type: 4, // INTEGER type

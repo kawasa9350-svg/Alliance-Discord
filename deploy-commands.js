@@ -1,26 +1,137 @@
 const { REST, Routes } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-
-// Load configuration
 const config = require('./config.js');
 
-const commands = [];
-const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-// Load command data
-for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    
-    if ('data' in command && 'execute' in command) {
-        commands.push(command.data.toJSON());
-        console.log(`📝 Loaded command: ${command.data.name}`);
-    } else {
-        console.log(`⚠️ Command at ${filePath} is missing required properties`);
+// Define commands inline (matching force-update-commands.js)
+const commands = [
+    {
+        name: 'register',
+        description: 'Register for Albion Online Alliance and select your guild',
+        options: [
+            {
+                name: 'guild',
+                description: 'Select your guild',
+                type: 3, // STRING type
+                required: true,
+                choices: [
+                    {
+                        name: 'Phoenix Rebels',
+                        value: 'Phoenix Rebels'
+                    },
+                    {
+                        name: 'Trash Collectors',
+                        value: 'Trash Collectors'
+                    },
+                    {
+                        name: 'Riders of Rohirrim',
+                        value: 'Riders of Rohirrim'
+                    },
+                ]
+            },
+            {
+                name: 'ingame_name',
+                description: 'Your in-game character name',
+                type: 3, // STRING type
+                required: true
+            }
+        ]
+    },
+    {
+        name: 'lootsplit',
+        description: 'Calculate loot split with caller fees (no guild tax)',
+        options: [
+            {
+                name: 'content_type',
+                description: 'Type of content being run',
+                type: 3, // STRING type
+                required: true,
+                choices: [
+                    { name: 'BZ Roam', value: 'BZ Roam' },
+                    { name: 'Shitters Roam', value: 'Shitters Roam' },
+                    { name: 'Dungeons', value: 'Dungeons' },
+                    { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
+                    { name: 'Hellgate', value: 'Hellgate' },
+                ]
+            },
+            {
+                name: 'users',
+                description: 'Mention the users participating (e.g., @user1 @user2 @user3)',
+                type: 3, // STRING type
+                required: true
+            },
+            {
+                name: 'caller',
+                description: 'Mention the caller user (e.g., @caller)',
+                type: 3, // STRING type
+                required: true
+            },
+            {
+                name: 'repair_fees',
+                description: 'Total repair fees in silver',
+                type: 4, // INTEGER type
+                required: true
+            },
+            {
+                name: 'total_loot',
+                description: 'Total loot value in silver',
+                type: 4, // INTEGER type
+                required: true
+            }
+        ]
+    },
+    {
+        name: 'comp',
+        description: 'Create a comp with roles and slots',
+        options: [
+            {
+                name: 'create',
+                description: 'Create a new comp',
+                type: 1, // SUB_COMMAND type
+                options: [
+                    {
+                        name: 'content_type',
+                        description: 'Type of content for this comp',
+                        type: 3, // STRING type
+                        required: true,
+                        choices: [
+                            { name: 'BZ Roam', value: 'BZ Roam' },
+                            { name: 'Shitters Roam', value: 'Shitters Roam' },
+                            { name: 'Dungeons', value: 'Dungeons' },
+                            { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
+                            { name: 'Hellgate', value: 'Hellgate' }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'list',
+                description: 'Show builds for a specific comp',
+                type: 1, // SUB_COMMAND type
+                options: [
+                    {
+                        name: 'comp',
+                        description: 'Select a comp to view its builds',
+                        type: 3, // STRING type
+                        required: true,
+                        autocomplete: true
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        name: 'signup',
+        description: 'Sign up for roles in a comp',
+        options: [
+            {
+                name: 'comp',
+                description: 'Select a comp to sign up for',
+                type: 3, // STRING type
+                required: true,
+                autocomplete: true
+            }
+        ]
     }
-}
+];
 
 // Create REST instance
 const rest = new REST({ version: '10' }).setToken(config.bot.token);
