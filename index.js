@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
 const config = require('./config');
@@ -14,6 +14,7 @@ console.log('CLIENT_ID value:', process.env.CLIENT_ID);
 const User = require('./models/User');
 const Composition = require('./models/Composition');
 const SignupSession = require('./models/SignupSession');
+const Guild = require('./models/Guild');
 
 // Create Discord client with enhanced connection settings
 const client = new Client({
@@ -46,6 +47,49 @@ client.commands = new Collection();
 
 // Store comp creation data temporarily
 const compSessions = new Map();
+
+async function getGuildConfigByName(guildName) {
+    if (!guildName) {
+        return null;
+    }
+
+    const dbGuild = await Guild.findByNameCaseInsensitive(guildName);
+    if (dbGuild) {
+        return {
+            name: dbGuild.name,
+            roleId: dbGuild.roleId,
+            tag: dbGuild.tag || '',
+            color: dbGuild.color || config.embedColor,
+            source: 'database',
+            dbGuild
+        };
+    }
+
+    const configGuildName = Object.keys(config.guilds || {}).find(name => name.toLowerCase() === guildName.toLowerCase());
+    if (configGuildName) {
+        const guildConfig = config.guilds[configGuildName];
+        return {
+            name: configGuildName,
+            roleId: guildConfig.roleId,
+            tag: guildConfig.tag || '',
+            color: guildConfig.color || config.embedColor,
+            source: 'config'
+        };
+    }
+
+    return null;
+}
+
+async function getAllGuildChoices() {
+    const dbGuilds = await Guild.find({}).sort({ name: 1 }).lean();
+    const configGuilds = Object.keys(config.guilds || {});
+
+    const names = new Set();
+    dbGuilds.forEach(guild => names.add(guild.name));
+    configGuilds.forEach(name => names.add(name));
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+}
 
 // MongoDB Connection
 mongoose.connect(config.mongoUri)
@@ -116,6 +160,10 @@ client.on('interactionCreate', async (interaction) => {
             await handleCompCommand(interaction);
         } else if (commandName === 'signup') {
             await handleSignupCommand(interaction);
+        } else if (commandName === 'add-guild') {
+            await handleAddGuildCommand(interaction);
+        } else if (commandName === 'remove-guild') {
+            await handleRemoveGuildCommand(interaction);
         }
     }
 });
@@ -125,7 +173,7 @@ async function handleRegisterCommand(interaction) {
     try {
         const selectedGuild = interaction.options.getString('guild');
         const ingameName = interaction.options.getString('ingame_name').trim();
-        const guildConfig = config.guilds[selectedGuild];
+        const guildConfig = await getGuildConfigByName(selectedGuild);
         
         if (!guildConfig) {
             await interaction.reply({ 
@@ -134,6 +182,11 @@ async function handleRegisterCommand(interaction) {
             });
             return;
         }
+
+        const guildDisplayName = guildConfig.name || selectedGuild;
+        const guildRoleId = guildConfig.roleId;
+        const guildTag = guildConfig.tag ? guildConfig.tag.trim() : '';
+        const embedColor = guildConfig.color || config.embedColor;
 
         // Validate in-game name
         if (ingameName.length < 2 || ingameName.length > 20) {
@@ -152,7 +205,7 @@ async function handleRegisterCommand(interaction) {
         const userData = {
             discordId: interaction.user.id,
             username: interaction.user.username,
-            guild: selectedGuild,
+            guild: guildDisplayName,
             ingameName: ingameName,
             registeredAt: new Date(),
             hasRequiredRole: hasRequiredRole
@@ -172,10 +225,16 @@ async function handleRegisterCommand(interaction) {
         if (hasRequiredRole) {
             // Assign guild role
             try {
-                const role = interaction.guild.roles.cache.get(guildConfig.roleId);
-                if (role) {
-                    await member.roles.add(role);
-                    roleAssigned = true;
+                if (guildRoleId) {
+                    const role = interaction.guild.roles.cache.get(guildRoleId);
+                    if (role) {
+                        await member.roles.add(role);
+                        roleAssigned = true;
+                    } else {
+                        console.warn(`Guild role with ID ${guildRoleId} not found in guild ${interaction.guild.id}`);
+                    }
+                } else {
+                    console.warn(`Guild ${guildDisplayName} does not have a configured roleId`);
                 }
             } catch (error) {
                 console.error('Error assigning role:', error);
@@ -183,12 +242,14 @@ async function handleRegisterCommand(interaction) {
 
             // Change nickname with guild tag
             try {
-                const newNickname = `${guildConfig.tag} ${ingameName}`;
+                const newNickname = guildTag ? `${guildTag} ${ingameName}` : ingameName;
                 await member.setNickname(newNickname);
                 nicknameChanged = true;
             } catch (error) {
                 console.error('Error changing nickname:', error);
-                nicknameError = `Please manually change your nickname to: **${guildConfig.tag} ${ingameName}**`;
+                nicknameError = guildTag
+                    ? `Please manually change your nickname to: **${guildTag} ${ingameName}**`
+                    : `Please manually change your nickname to: **${ingameName}**`;
             }
         } else {
             // Just change nickname without tag
@@ -204,11 +265,11 @@ async function handleRegisterCommand(interaction) {
         // Send confirmation
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
-            .setDescription(`Welcome to One Bang!`)
-            .setColor(guildConfig.color)
+            .setDescription(`Welcome to ${guildDisplayName}!`)
+            .setColor(embedColor)
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
-                { name: 'Guild', value: selectedGuild, inline: true },
+                { name: 'Guild', value: guildDisplayName, inline: true },
                 { name: 'Role Assigned', value: roleAssigned ? '✅ Yes' : '❌ No (Missing required role)', inline: true },
                 { name: 'Nickname Changed', value: nicknameChanged ? '✅ Yes' : '❌ No (Bot lacks permission)', inline: true }
             )
@@ -230,6 +291,110 @@ async function handleRegisterCommand(interaction) {
     }
 }
 
+async function handleAddGuildCommand(interaction) {
+    if (!interaction.inGuild() || !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        await interaction.reply({
+            content: '❌ You need the **Manage Server** permission to use this command.',
+            ephemeral: true
+        });
+        return;
+    }
+
+    const name = interaction.options.getString('name').trim();
+    const roleId = interaction.options.getString('role_id').trim();
+    const tag = interaction.options.getString('tag')?.trim() || '';
+    const colorInput = interaction.options.getString('color')?.trim() || '';
+
+    if (!/^\d{17,19}$/.test(roleId)) {
+        await interaction.reply({
+            content: '❌ Invalid role ID. Please provide a valid Discord role ID.',
+            ephemeral: true
+        });
+        return;
+    }
+
+    let color = colorInput;
+    if (color) {
+        if (!/^#?[0-9A-Fa-f]{6}$/.test(color)) {
+            await interaction.reply({
+                content: '❌ Invalid color format. Please provide a hex color like `#FFAA00`.',
+                ephemeral: true
+            });
+            return;
+        }
+        if (!color.startsWith('#')) {
+            color = `#${color}`;
+        }
+    } else {
+        color = config.embedColor;
+    }
+
+    const existingGuild = await Guild.findByNameCaseInsensitive(name);
+
+    let guildDoc;
+    if (existingGuild) {
+        existingGuild.roleId = roleId;
+        existingGuild.tag = tag;
+        existingGuild.color = color;
+        existingGuild.updatedBy = {
+            discordId: interaction.user.id,
+            username: interaction.user.username
+        };
+        guildDoc = await existingGuild.save();
+    } else {
+        guildDoc = await Guild.create({
+            name,
+            roleId,
+            tag,
+            color,
+            createdBy: {
+                discordId: interaction.user.id,
+                username: interaction.user.username
+            },
+            updatedBy: {
+                discordId: interaction.user.id,
+                username: interaction.user.username
+            }
+        });
+    }
+
+    const baseMessage = `• Role ID: \`${guildDoc.roleId}\`\n• Tag: \`${guildDoc.tag || 'None'}\`\n• Color: \`${guildDoc.color}\``;
+
+    await interaction.reply({
+        content: existingGuild
+            ? `✅ Updated guild **${guildDoc.name}**.\n${baseMessage}`
+            : `✅ Added new guild **${guildDoc.name}**.\n${baseMessage}\n\n✅ The guild is now available in /register autocomplete.`,
+        ephemeral: true
+    });
+}
+
+async function handleRemoveGuildCommand(interaction) {
+    if (!interaction.inGuild() || !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        await interaction.reply({
+            content: '❌ You need the **Manage Server** permission to use this command.',
+            ephemeral: true
+        });
+        return;
+    }
+
+    const name = interaction.options.getString('name').trim();
+    const guildDoc = await Guild.findByNameCaseInsensitive(name);
+
+    if (!guildDoc) {
+        await interaction.reply({
+            content: `❌ Guild **${name}** was not found in the database.`,
+            ephemeral: true
+        });
+        return;
+    }
+
+    await guildDoc.deleteOne();
+
+    await interaction.reply({
+        content: `✅ Removed guild **${guildDoc.name}**.\n\n✅ It has been removed from /register autocomplete.`,
+        ephemeral: true
+    });
+}
 // Lootsplit command handler
 async function handleLootsplitCommand(interaction) {
     try {
@@ -936,8 +1101,41 @@ client.on('interactionCreate', async (interaction) => {
     } else if (interaction.commandName === 'comp') {
         // Reuse same autocomplete for comp list subcommand
         await handleSignupAutocomplete(interaction);
+    } else if (interaction.commandName === 'register') {
+        await handleGuildAutocomplete(interaction);
+    } else if (interaction.commandName === 'remove-guild') {
+        await handleGuildAutocomplete(interaction);
     }
 });
+
+async function handleGuildAutocomplete(interaction) {
+    try {
+        const focusedValue = interaction.options.getFocused(true)?.value || '';
+        const allGuilds = await getAllGuildChoices();
+        const filtered = allGuilds
+            .filter(name => name.toLowerCase().includes(focusedValue.toLowerCase()))
+            .slice(0, 25);
+
+        if (filtered.length === 0) {
+            await interaction.respond([{
+                name: 'No guilds found. Add one with /add-guild',
+                value: focusedValue || 'no-guilds-found'
+            }]);
+            return;
+        }
+
+        await interaction.respond(filtered.map(name => ({
+            name,
+            value: name
+        })));
+    } catch (error) {
+        console.error('Error in guild autocomplete:', error);
+        await interaction.respond([{
+            name: 'Error loading guilds',
+            value: 'error-loading'
+        }]);
+    }
+}
 
 // Update signup embed function
 async function updateSignupEmbed(interaction, session) {

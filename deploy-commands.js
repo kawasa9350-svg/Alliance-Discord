@@ -1,4 +1,4 @@
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, PermissionFlagsBits } = require('discord.js');
 const config = require('./config.js');
 
 // Define commands inline (matching force-update-commands.js)
@@ -12,26 +12,60 @@ const commands = [
                 description: 'Select your guild',
                 type: 3, // STRING type
                 required: true,
-                choices: [
-                    {
-                        name: 'Phoenix Rebels',
-                        value: 'Phoenix Rebels'
-                    },
-                    {
-                        name: 'Trash Collectors',
-                        value: 'Trash Collectors'
-                    },
-                    {
-                        name: 'Riders of Rohirrim',
-                        value: 'Riders of Rohirrim'
-                    },
-                ]
+                autocomplete: true
             },
             {
                 name: 'ingame_name',
                 description: 'Your in-game character name',
                 type: 3, // STRING type
                 required: true
+            }
+        ]
+    },
+    {
+        name: 'add-guild',
+        description: 'Add or update a guild for registrations',
+        default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
+        dm_permission: false,
+        options: [
+            {
+                name: 'name',
+                description: 'Guild name as it should appear',
+                type: 3,
+                required: true
+            },
+            {
+                name: 'role_id',
+                description: 'Discord role ID to assign on registration',
+                type: 3,
+                required: true
+            },
+            {
+                name: 'tag',
+                description: 'Optional guild tag to prepend to nickname',
+                type: 3,
+                required: false
+            },
+            {
+                name: 'color',
+                description: 'Optional embed color in hex (e.g., #FFAA00)',
+                type: 3,
+                required: false
+            }
+        ]
+    },
+    {
+        name: 'remove-guild',
+        description: 'Remove a guild from registrations',
+        default_member_permissions: PermissionFlagsBits.ManageGuild.toString(),
+        dm_permission: false,
+        options: [
+            {
+                name: 'name',
+                description: 'Select the guild to remove',
+                type: 3,
+                required: true,
+                autocomplete: true
             }
         ]
     },
