@@ -2,16 +2,16 @@ require('dotenv').config();
 
 module.exports = {
     // Bot Configuration
-    botToken: process.env.BOT_TOKEN || process.env.DISCORD_BOT_TOKEN,
-    clientId: process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID,
+    botToken: (process.env.BOT_TOKEN || process.env.DISCORD_BOT_TOKEN || '').trim(),
+    clientId: (process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID || '').trim(),
     
     // Test Server ID for instant command updates (get this from Discord server settings)
     testGuildId: process.env.TEST_GUILD_ID,
     
     // Bot configuration object (for compatibility with deploy-commands.js)
     bot: {
-        token: process.env.BOT_TOKEN || process.env.DISCORD_BOT_TOKEN,
-        applicationId: process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID
+        token: (process.env.BOT_TOKEN || process.env.DISCORD_BOT_TOKEN || '').trim(),
+        applicationId: (process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID || '').trim()
     },
     
     // Development configuration
@@ -29,11 +29,6 @@ module.exports = {
             roleId: process.env.PHOENIX_REBELS_ROLE_ID,
             tag: '[PHNX]',
             color: '#FF6B35'
-        },
-        'Trash Collectors': {
-            roleId: process.env.TRASH_COLLECTORS_ROLE_ID,
-            tag: '[TC]',
-            color: '#4ECDC4'
         },
         'Riders of Rohirrim': {
             roleId: process.env.RIDERS_OF_ROHIRRIM_ROLE_ID,

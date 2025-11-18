@@ -1457,12 +1457,38 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Login to Discord with retry logic
 const loginWithRetry = async (retries = 3) => {
+    // Validate token before attempting login
+    if (!config.botToken || config.botToken.trim().length === 0) {
+        console.error('❌ BOT_TOKEN is missing or empty!');
+        console.error('Please set BOT_TOKEN in your Render environment variables.');
+        console.error('Go to your Render dashboard > Environment > Add BOT_TOKEN');
+        process.exit(1);
+    }
+
+    // Basic token format validation (Discord bot tokens typically start with specific patterns)
+    if (config.botToken.length < 50) {
+        console.error('❌ BOT_TOKEN appears to be invalid (too short).');
+        console.error('Discord bot tokens are typically 59+ characters long.');
+        console.error('Please verify your BOT_TOKEN in Render environment variables.');
+        process.exit(1);
+    }
+
     try {
         console.log('🔑 Attempting to login with token:', config.botToken ? config.botToken.substring(0, 10) + '...' : 'undefined');
+        console.log('📏 Token length:', config.botToken.length);
         await client.login(config.botToken);
         console.log('✅ Successfully logged in to Discord');
     } catch (error) {
         console.error('❌ Login failed:', error.message);
+        
+        // Provide helpful error messages
+        if (error.message.includes('invalid token') || error.message.includes('401')) {
+            console.error('💡 Troubleshooting tips:');
+            console.error('   1. Verify your BOT_TOKEN in Render dashboard > Environment');
+            console.error('   2. Make sure there are no extra spaces or quotes around the token');
+            console.error('   3. Check if the token was regenerated - you may need a new one');
+            console.error('   4. Go to https://discord.com/developers/applications to get a fresh token');
+        }
         
         if (retries > 0) {
             console.log(`🔄 Retrying login in 5 seconds... (${retries} attempts left)`);
