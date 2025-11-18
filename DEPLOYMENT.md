@@ -60,6 +60,7 @@ CLIENT_ID=your_client_id_here
 TEST_GUILD_ID=your_test_guild_id_here
 MONGO_URI=your_mongodb_connection_string_here
 PHOENIX_REBELS_ROLE_ID=your_phoenix_rebels_role_id_here
+TRASH_COLLECTORS_ROLE_ID=your_trash_collectors_role_id_here
 REQUIRED_ROLE_ID=your_required_role_id_here
 PREFIX=!
 EMBED_COLOR=#0099ff
