@@ -30,11 +30,6 @@ module.exports = {
             tag: '[PHNX]',
             color: '#FF6B35'
         },
-        'Trash Collectors': {
-            roleId: process.env.TRASH_COLLECTORS_ROLE_ID,
-            tag: '[TC]',
-            color: '#4ECDC4'
-        },
         'Riders of Rohirrim': {
             roleId: process.env.RIDERS_OF_ROHIRRIM_ROLE_ID,
             tag: '[RoR]',
