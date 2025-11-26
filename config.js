@@ -29,11 +29,6 @@ module.exports = {
             roleId: process.env.PHOENIX_REBELS_ROLE_ID,
             tag: '[PHNX]',
             color: '#FF6B35'
-        },
-        'Riders of Rohirrim': {
-            roleId: process.env.RIDERS_OF_ROHIRRIM_ROLE_ID,
-            tag: '[RoR]',
-            color: '#8B4513'
         }
     },
 
