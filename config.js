@@ -54,6 +54,10 @@ module.exports = {
     // Caller Fee Rate
     callerFeeRate: parseFloat(process.env.CALLER_FEE_RATE) || 0.05,
     
+    // Phoenix webhook (for pushing splits to Phoenix Assistance)
+    phoenixWebhookUrl: process.env.PHOENIX_WEBHOOK_URL || '',
+    phoenixWebhookSecret: process.env.PHOENIX_WEBHOOK_SECRET || '',
+    
     // Required role ID to get guild roles (set to null if no role required)
     requiredRoleId: process.env.REQUIRED_ROLE_ID,
     

@@ -573,6 +573,41 @@ async function handleLootsplitCommand(interaction) {
 
         embed.addFields({ name: '🏛️ Guild Breakdown', value: perGuildTotals, inline: false });
 
+        // Send split to Phoenix Assistance for tax/balance handling (webhook)
+        if (config.phoenixWebhookUrl && config.phoenixWebhookSecret) {
+            try {
+                await fetch(config.phoenixWebhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Webhook-Secret': config.phoenixWebhookSecret
+                    },
+                    body: JSON.stringify({
+                        guildId: interaction.guildId,
+                        contentType,
+                        totalLoot,
+                        repairFees,
+                        callerFeeRate,
+                        callerId,
+                        participants: userIds
+                    })
+                }).then(async (res) => {
+                    if (!res.ok) {
+                        const text = await res.text();
+                        console.error('Phoenix ingest failed', res.status, text);
+                    } else {
+                        console.log('Phoenix ingest ok');
+                    }
+                }).catch(err => {
+                    console.error('Error sending split to Phoenix:', err);
+                });
+            } catch (error) {
+                console.error('Failed to send split to Phoenix:', error);
+            }
+        } else {
+            console.warn('Phoenix webhook not configured; skipping outbound split');
+        }
+
         await interaction.reply({ embeds: [embed] });
 
     } catch (error) {

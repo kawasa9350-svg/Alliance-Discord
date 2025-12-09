@@ -24,3 +24,7 @@ services:
         value: "#0099ff"
       - key: CALLER_FEE_RATE
         value: "0.08"
+      - key: PHOENIX_WEBHOOK_URL
+        sync: false
+      - key: PHOENIX_WEBHOOK_SECRET
+        sync: false
