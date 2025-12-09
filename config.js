@@ -57,6 +57,7 @@ module.exports = {
     // Phoenix webhook (for pushing splits to Phoenix Assistance)
     phoenixWebhookUrl: process.env.PHOENIX_WEBHOOK_URL || '',
     phoenixWebhookSecret: process.env.PHOENIX_WEBHOOK_SECRET || '',
+    phoenixTargetGuildId: process.env.PHOENIX_TARGET_GUILD_ID || '',
     
     // Required role ID to get guild roles (set to null if no role required)
     requiredRoleId: process.env.REQUIRED_ROLE_ID,

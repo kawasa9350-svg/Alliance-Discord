@@ -576,6 +576,7 @@ async function handleLootsplitCommand(interaction) {
         // Send split to Phoenix Assistance for tax/balance handling (webhook)
         if (config.phoenixWebhookUrl && config.phoenixWebhookSecret) {
             try {
+                const targetGuildId = config.phoenixTargetGuildId || interaction.guildId;
                 await fetch(config.phoenixWebhookUrl, {
                     method: 'POST',
                     headers: {
@@ -583,7 +584,7 @@ async function handleLootsplitCommand(interaction) {
                         'X-Webhook-Secret': config.phoenixWebhookSecret
                     },
                     body: JSON.stringify({
-                        guildId: interaction.guildId,
+                        guildId: targetGuildId,
                         contentType,
                         totalLoot,
                         repairFees,
