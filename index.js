@@ -574,34 +574,46 @@ async function handleLootsplitCommand(interaction) {
         embed.addFields({ name: '🏛️ Guild Breakdown', value: perGuildTotals, inline: false });
 
         // Send split to Phoenix Assistance for tax/balance handling (webhook)
+        // Only send Phoenix Rebels members to Phoenix, filter out other guilds
         if (config.phoenixWebhookUrl && config.phoenixWebhookSecret) {
             try {
                 const targetGuildId = config.phoenixTargetGuildId || interaction.guildId;
-                await fetch(config.phoenixWebhookUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Webhook-Secret': config.phoenixWebhookSecret
-                    },
-                    body: JSON.stringify({
-                        guildId: targetGuildId,
-                        contentType,
-                        totalLoot,
-                        repairFees,
-                        callerFeeRate,
-                        callerId,
-                        participants: userIds
-                    })
-                }).then(async (res) => {
-                    if (!res.ok) {
-                        const text = await res.text();
-                        console.error('Phoenix ingest failed', res.status, text);
-                    } else {
-                        console.log('Phoenix ingest ok');
-                    }
-                }).catch(err => {
-                    console.error('Error sending split to Phoenix:', err);
-                });
+                
+                // Filter to only Phoenix Rebels members - exclude other guilds even if registered in Phoenix
+                const phoenixRebelsUsers = registeredUsers.filter(user => user.guild === 'Phoenix Rebels');
+                const phoenixRebelsUserIds = phoenixRebelsUsers.map(user => user.user.id);
+                
+                // Only send if there are Phoenix Rebels members
+                if (phoenixRebelsUserIds.length > 0) {
+                    // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
+                    await fetch(config.phoenixWebhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Webhook-Secret': config.phoenixWebhookSecret
+                        },
+                        body: JSON.stringify({
+                            guildId: targetGuildId,
+                            contentType,
+                            totalLoot,
+                            repairFees,
+                            callerFeeRate,
+                            callerId, // Send actual caller - Phoenix handles if they're not Phoenix Rebels
+                            participants: phoenixRebelsUserIds // Only Phoenix Rebels members
+                        })
+                    }).then(async (res) => {
+                        if (!res.ok) {
+                            const text = await res.text();
+                            console.error('Phoenix ingest failed', res.status, text);
+                        } else {
+                            console.log(`Phoenix ingest ok - credited ${phoenixRebelsUserIds.length} Phoenix Rebels members`);
+                        }
+                    }).catch(err => {
+                        console.error('Error sending split to Phoenix:', err);
+                    });
+                } else {
+                    console.log('No Phoenix Rebels members in split; skipping Phoenix webhook');
+                }
             } catch (error) {
                 console.error('Failed to send split to Phoenix:', error);
             }
