@@ -89,7 +89,7 @@ const commands = [
                 type: 3, // STRING type
                 required: true,
                 choices: [
-                    { name: 'BZ Roaming', value: 'BZ Roaming' },
+                    { name: 'BZ Roam', value: 'BZ Roam' },
                     { name: 'Shitters Roam', value: 'Shitters Roam' },
                     { name: 'Dungeons', value: 'Dungeons' },
                     { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
@@ -137,7 +137,7 @@ const commands = [
                         type: 3, // STRING type
                         required: true,
                         choices: [
-                            { name: 'BZ Roaming', value: 'BZ Roaming' },
+                            { name: 'BZ Roam', value: 'BZ Roam' },
                             { name: 'Shitters Roam', value: 'Shitters Roam' },
                             { name: 'Dungeons', value: 'Dungeons' },
                             { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
