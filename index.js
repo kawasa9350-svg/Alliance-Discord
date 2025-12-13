@@ -573,62 +573,77 @@ async function handleLootsplitCommand(interaction) {
 
         embed.addFields({ name: '🏛️ Guild Breakdown', value: perGuildTotals, inline: false });
 
-        // Send split to Phoenix Assistance for tax/balance handling (webhook)
+        // Reply to interaction first (must be within 3 seconds)
+        await interaction.reply({ embeds: [embed] });
+
+        // Send split to Phoenix Assistance for tax/balance handling (webhook) - do this after reply
         // Only send Phoenix Rebels members to Phoenix, filter out other guilds
         if (config.phoenixWebhookUrl && config.phoenixWebhookSecret) {
-            try {
-                const targetGuildId = config.phoenixTargetGuildId || interaction.guildId;
-                
-                // Filter to only Phoenix Rebels members - exclude other guilds even if registered in Phoenix
-                const phoenixRebelsUsers = registeredUsers.filter(user => user.guild === 'Phoenix Rebels');
-                const phoenixRebelsUserIds = phoenixRebelsUsers.map(user => user.user.id);
-                
-                // Only send if there are Phoenix Rebels members
-                if (phoenixRebelsUserIds.length > 0) {
-                    // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
-                    await fetch(config.phoenixWebhookUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Webhook-Secret': config.phoenixWebhookSecret
-                        },
-                        body: JSON.stringify({
-                            guildId: targetGuildId,
-                            contentType,
-                            totalLoot,
-                            repairFees,
-                            callerFeeRate,
-                            callerId, // Send actual caller - Phoenix handles if they're not Phoenix Rebels
-                            participants: phoenixRebelsUserIds // Only Phoenix Rebels members
-                        })
-                    }).then(async (res) => {
+            // Run webhook in background (don't await to avoid blocking)
+            (async () => {
+                try {
+                    const targetGuildId = config.phoenixTargetGuildId || interaction.guildId;
+                    
+                    // Filter to only Phoenix Rebels members - exclude other guilds even if registered in Phoenix
+                    const phoenixRebelsUsers = registeredUsers.filter(user => user.guild === 'Phoenix Rebels');
+                    const phoenixRebelsUserIds = phoenixRebelsUsers.map(user => user.user.id);
+                    
+                    // Only send if there are Phoenix Rebels members
+                    if (phoenixRebelsUserIds.length > 0) {
+                        // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
+                        const res = await fetch(config.phoenixWebhookUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Webhook-Secret': config.phoenixWebhookSecret
+                            },
+                            body: JSON.stringify({
+                                guildId: targetGuildId,
+                                contentType,
+                                totalLoot,
+                                repairFees,
+                                callerFeeRate,
+                                callerId, // Send actual caller - Phoenix handles if they're not Phoenix Rebels
+                                participants: phoenixRebelsUserIds // Only Phoenix Rebels members
+                            })
+                        });
+                        
                         if (!res.ok) {
                             const text = await res.text();
                             console.error('Phoenix ingest failed', res.status, text);
                         } else {
                             console.log(`Phoenix ingest ok - credited ${phoenixRebelsUserIds.length} Phoenix Rebels members`);
                         }
-                    }).catch(err => {
-                        console.error('Error sending split to Phoenix:', err);
-                    });
-                } else {
-                    console.log('No Phoenix Rebels members in split; skipping Phoenix webhook');
+                    } else {
+                        console.log('No Phoenix Rebels members in split; skipping Phoenix webhook');
+                    }
+                } catch (error) {
+                    console.error('Failed to send split to Phoenix:', error);
                 }
-            } catch (error) {
-                console.error('Failed to send split to Phoenix:', error);
-            }
+            })();
         } else {
             console.warn('Phoenix webhook not configured; skipping outbound split');
         }
 
-        await interaction.reply({ embeds: [embed] });
-
     } catch (error) {
         console.error('Error in lootsplit command:', error);
-        await interaction.reply({ 
-            content: '❌ An error occurred while calculating the loot split. Please try again later.',
-            flags: 64 // Ephemeral flag
-        });
+        try {
+            // Check if interaction was already replied to
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ 
+                    content: '❌ An error occurred while calculating the loot split. Please try again later.',
+                    ephemeral: true
+                });
+            } else {
+                await interaction.reply({ 
+                    content: '❌ An error occurred while calculating the loot split. Please try again later.',
+                    flags: 64 // Ephemeral flag
+                });
+            }
+        } catch (replyError) {
+            // If interaction expired or already responded, just log it
+            console.error('Failed to send error message to user:', replyError);
+        }
     }
 }
 

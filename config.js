@@ -34,7 +34,7 @@ module.exports = {
 
     // Content Types
     contentTypes: {
-        'BZ Roam': {
+        'BZ Roaming': {
             color: '#FF6B35'
         },
         'Shitters Roam': {
