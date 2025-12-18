@@ -590,6 +590,11 @@ async function handleLootsplitCommand(interaction) {
                     
                     // Only send if there are Phoenix Rebels members
                     if (phoenixRebelsUserIds.length > 0) {
+                        // Calculate Phoenix Rebels portion of the original loot (before repairs/caller fee)
+                        // Phoenix gets their proportional share of the original loot pool
+                        const phoenixRatio = phoenixRebelsUserIds.length / registeredUsers.length;
+                        const phoenixTotalLoot = Math.floor(totalLoot * phoenixRatio);
+                        
                         // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
                         const res = await fetch(config.phoenixWebhookUrl, {
                             method: 'POST',
@@ -600,8 +605,8 @@ async function handleLootsplitCommand(interaction) {
                             body: JSON.stringify({
                                 guildId: targetGuildId,
                                 contentType,
-                                totalLoot,
-                                repairFees,
+                                totalLoot: phoenixTotalLoot, // Send Phoenix's portion only
+                                repairFees, // Send full repair fees
                                 callerFeeRate,
                                 callerId, // Send actual caller - Phoenix handles if they're not Phoenix Rebels
                                 participants: phoenixRebelsUserIds // Only Phoenix Rebels members
