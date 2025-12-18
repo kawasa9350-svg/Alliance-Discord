@@ -263,6 +263,15 @@ async function handleRegisterCommand(interaction) {
         }
 
         // Send confirmation
+        // Format role mention if role is missing
+        let roleAssignedText = '✅ Yes';
+        if (!roleAssigned && config.requiredRoleId) {
+            const requiredRoleMention = `<@&${config.requiredRoleId}>`;
+            roleAssignedText = `❌ No (Missing ${requiredRoleMention} role)`;
+        } else if (!roleAssigned) {
+            roleAssignedText = '❌ No (Missing @alliance role)';
+        }
+        
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
             .setDescription(`Welcome to ${guildDisplayName}!`)
@@ -270,7 +279,7 @@ async function handleRegisterCommand(interaction) {
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
                 { name: 'Guild', value: guildDisplayName, inline: true },
-                { name: 'Role Assigned', value: roleAssigned ? '✅ Yes' : '❌ No (Missing required role)', inline: true },
+                { name: 'Role Assigned', value: roleAssignedText, inline: true },
                 { name: 'Nickname Changed', value: nicknameChanged ? '✅ Yes' : '❌ No (Bot lacks permission)', inline: true }
             )
             .setTimestamp();
