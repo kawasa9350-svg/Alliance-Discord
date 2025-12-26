@@ -621,10 +621,6 @@ async function handleLootsplitCommand(interaction) {
                             phoenixTotalLoot += callerFee;
                         }
 
-                        // Calculate proportional repair fees
-                        const phoenixRatio = phoenixRebelsUserIds.length / registeredUsers.length;
-                        const phoenixRepairFees = Math.floor(repairFees * phoenixRatio);
-
                         // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
                         const res = await fetch(config.phoenixWebhookUrl, {
                             method: 'POST',
@@ -636,7 +632,7 @@ async function handleLootsplitCommand(interaction) {
                                 guildId: targetGuildId,
                                 contentType,
                                 totalLoot: phoenixTotalLoot, // Calculated as (Split * Count) + CallerFee
-                                repairFees: phoenixRepairFees, // Send proportional repair fees
+                                repairFees: repairFees, // Send FULL repair fees as requested for tax deduction logic
                                 explicitCallerFee: callerFee, // The exact fee amount
                                 callerFeeRate,
                                 callerId, 
