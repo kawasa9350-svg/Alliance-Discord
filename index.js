@@ -600,10 +600,31 @@ async function handleLootsplitCommand(interaction) {
                     // Only send if there are Phoenix Rebels members
                     if (phoenixRebelsUserIds.length > 0) {
                         // Calculate Phoenix Rebels portion of the original loot (before repairs/caller fee)
-                        // Phoenix gets their proportional share of the original loot pool
-                        const phoenixRatio = phoenixRebelsUserIds.length / registeredUsers.length;
-                        const phoenixTotalLoot = Math.floor(totalLoot * phoenixRatio);
+                        // User Request: "If phoenix is 10 people then 1,187,500*10 + (caller fee) is sent to albion assistance"
+                        // 1,187,500 is the Net Per Person share (after repairs and caller fee).
+                        // So Phoenix Base Share = NetPerPerson * PhoenixCount.
+                        // And we add the Caller Fee ON TOP of that if the caller is Phoenix.
                         
+                        // Let's recalculate based on the Alliance logic:
+                        // lootAfterRepairFees = totalLoot - repairFees
+                        // callerFee = lootAfterRepairFees * rate
+                        // lootAfterCallerFee = lootAfterRepairFees - callerFee
+                        // lootPerPerson = lootAfterCallerFee / totalParticipants
+                        
+                        // Phoenix Share = (lootPerPerson * phoenixCount)
+                        // If Caller is Phoenix, we ADD the callerFee to the payload total so Phoenix Assistance can strip it out later.
+                        
+                        let phoenixTotalLoot = Math.floor(lootPerPerson * phoenixRebelsUserIds.length);
+                        
+                        // If caller is in Phoenix, add the caller fee to the bundle
+                        if (callerData && callerData.guild === 'Phoenix Rebels') {
+                            phoenixTotalLoot += callerFee;
+                        }
+
+                        // Calculate proportional repair fees
+                        const phoenixRatio = phoenixRebelsUserIds.length / registeredUsers.length;
+                        const phoenixRepairFees = Math.floor(repairFees * phoenixRatio);
+
                         // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
                         const res = await fetch(config.phoenixWebhookUrl, {
                             method: 'POST',
@@ -614,11 +635,12 @@ async function handleLootsplitCommand(interaction) {
                             body: JSON.stringify({
                                 guildId: targetGuildId,
                                 contentType,
-                                totalLoot: phoenixTotalLoot, // Send Phoenix's portion only
-                                repairFees, // Send full repair fees
+                                totalLoot: phoenixTotalLoot, // Calculated as (Split * Count) + CallerFee
+                                repairFees: phoenixRepairFees, // Send proportional repair fees
+                                explicitCallerFee: callerFee, // The exact fee amount
                                 callerFeeRate,
-                                callerId, // Send actual caller - Phoenix handles if they're not Phoenix Rebels
-                                participants: phoenixRebelsUserIds // Only Phoenix Rebels members
+                                callerId, 
+                                participants: phoenixRebelsUserIds 
                             })
                         });
                         
