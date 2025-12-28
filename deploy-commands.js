@@ -80,10 +80,7 @@ const commands = [
                 required: true,
                 choices: [
                     { name: 'BZ Roaming', value: 'BZ Roaming' },
-                    { name: 'Shitters Roam', value: 'Shitters Roam' },
-                    { name: 'Dungeons', value: 'Dungeons' },
-                    { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
-                    { name: 'Hellgate', value: 'Hellgate' },
+                    { name: 'PvE Content', value: 'PvE Content' }
                 ]
             },
             {
@@ -128,10 +125,7 @@ const commands = [
                         required: true,
                         choices: [
                             { name: 'BZ Roaming', value: 'BZ Roaming' },
-                            { name: 'Shitters Roam', value: 'Shitters Roam' },
-                            { name: 'Dungeons', value: 'Dungeons' },
-                            { name: 'Avalonian Dungeon', value: 'Avalonian Dungeon' },
-                            { name: 'Hellgate', value: 'Hellgate' }
+                            { name: 'PvE Content', value: 'PvE Content' }
                         ]
                     }
                 ]

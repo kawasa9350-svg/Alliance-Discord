@@ -37,17 +37,8 @@ module.exports = {
         'BZ Roaming': {
             color: '#FF6B35'
         },
-        'Shitters Roam': {
+        'PvE Content': {
             color: '#4ECDC4'
-        },
-        'Dungeons': {
-            color: '#9B59B6'
-        },
-        'Avalonian Dungeon': {
-            color: '#E74C3C'
-        },
-        'Hellgate': {
-            color: '#F39C12'
         }
     },
 
