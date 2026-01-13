@@ -568,19 +568,37 @@ async function handleLootsplitCommand(interaction) {
             )
             .setTimestamp();
 
-        // Add players list (chunked to avoid 1024 limit)
-        const participants = registeredUsers.map(user => `<@${user.user.id}> - ${user.guild}`);
+        // Add players list grouped by guild
+        const playersByGuild = {};
+        registeredUsers.forEach(user => {
+            if (!playersByGuild[user.guild]) {
+                playersByGuild[user.guild] = [];
+            }
+            playersByGuild[user.guild].push(user.user.id);
+        });
+
+        const sortedGuilds = Object.keys(playersByGuild).sort();
+
+        let participantsContent = '';
+        for (const guild of sortedGuilds) {
+            const memberIds = playersByGuild[guild];
+            participantsContent += `**${guild} (${memberIds.length})**\n`;
+            participantsContent += memberIds.map(id => `<@${id}>`).join(', ') + '\n\n';
+        }
+
+        // Chunking logic for the new format
+        const lines = participantsContent.split('\n');
         let currentField = '';
         let fieldCount = 1;
 
-        for (const participant of participants) {
-            // Check if adding this participant would exceed the limit (leaving some buffer)
-            if (currentField.length + participant.length + 1 >= 1000) {
+        for (const line of lines) {
+            // Check if adding this line would exceed the limit
+            if (currentField.length + line.length + 1 >= 1000) {
                 embed.addFields({ name: `👥 Participants ${fieldCount > 1 ? `(${fieldCount})` : ''}`, value: currentField, inline: false });
-                currentField = participant;
+                currentField = line;
                 fieldCount++;
             } else {
-                currentField = currentField ? `${currentField}\n${participant}` : participant;
+                currentField = currentField ? `${currentField}\n${line}` : line;
             }
         }
         
