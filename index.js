@@ -568,12 +568,26 @@ async function handleLootsplitCommand(interaction) {
             )
             .setTimestamp();
 
-        // Add players list as proper mentions only
-        const playersList = registeredUsers.map(user => {
-            return `<@${user.user.id}> - ${user.guild}`;
-        }).join('\n');
+        // Add players list (chunked to avoid 1024 limit)
+        const participants = registeredUsers.map(user => `<@${user.user.id}> - ${user.guild}`);
+        let currentField = '';
+        let fieldCount = 1;
 
-        embed.addFields({ name: '👥 Participants', value: playersList, inline: false });
+        for (const participant of participants) {
+            // Check if adding this participant would exceed the limit (leaving some buffer)
+            if (currentField.length + participant.length + 1 >= 1000) {
+                embed.addFields({ name: `👥 Participants ${fieldCount > 1 ? `(${fieldCount})` : ''}`, value: currentField, inline: false });
+                currentField = participant;
+                fieldCount++;
+            } else {
+                currentField = currentField ? `${currentField}\n${participant}` : participant;
+            }
+        }
+        
+        // Add the last field
+        if (currentField) {
+            embed.addFields({ name: `👥 Participants ${fieldCount > 1 ? `(${fieldCount})` : ''}`, value: currentField, inline: false });
+        }
 
         // Add per guild totals
         const perGuildTotals = Object.entries(guildTotals)
