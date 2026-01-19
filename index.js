@@ -16,6 +16,32 @@ const Composition = require('./models/Composition');
 const SignupSession = require('./models/SignupSession');
 const Guild = require('./models/Guild');
 
+const ALBION_API_BASE_URL = process.env.ALBION_API_BASE_URL || 'https://gameinfo.albiononline.com/api/gameinfo';
+
+async function getAlbionPlayerGuild(ingameName) {
+    const searchUrl = `${ALBION_API_BASE_URL}/search?q=${encodeURIComponent(ingameName)}`;
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) {
+        throw new Error(`Albion search failed with status ${searchRes.status}`);
+    }
+    const searchData = await searchRes.json();
+    const players = searchData.players || [];
+    const player = players.find(p => typeof p.Name === 'string' && p.Name.toLowerCase() === ingameName.toLowerCase());
+    if (!player) {
+        return null;
+    }
+    const playerUrl = `${ALBION_API_BASE_URL}/players/${player.Id}`;
+    const playerRes = await fetch(playerUrl);
+    if (!playerRes.ok) {
+        throw new Error(`Albion player lookup failed with status ${playerRes.status}`);
+    }
+    const playerData = await playerRes.json();
+    return {
+        guildName: playerData.GuildName || null,
+        guildId: playerData.GuildId || null
+    };
+}
+
 // Create Discord client with enhanced connection settings
 const client = new Client({
     intents: [
@@ -188,7 +214,6 @@ async function handleRegisterCommand(interaction) {
         const guildTag = guildConfig.tag ? guildConfig.tag.trim() : '';
         const embedColor = guildConfig.color || config.embedColor;
 
-        // Validate in-game name
         if (ingameName.length < 2 || ingameName.length > 20) {
             await interaction.reply({ 
                 content: '❌ In-game name must be between 2 and 20 characters.', 
@@ -197,7 +222,28 @@ async function handleRegisterCommand(interaction) {
             return;
         }
 
-        // Check if user has required role
+        let apiGuildMatch = null;
+        try {
+            const apiGuild = await getAlbionPlayerGuild(ingameName);
+            if (!apiGuild || !apiGuild.guildName) {
+                await interaction.reply({
+                    content: '❌ Could not find your character or guild in the Albion API. Make sure your in-game name is correct and try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            apiGuildMatch = apiGuild.guildName;
+            if (apiGuild.guildName.toLowerCase() !== guildDisplayName.toLowerCase()) {
+                await interaction.reply({
+                    content: `❌ In-game you are in **${apiGuild.guildName}**, not **${guildDisplayName}**. Please select the correct guild that matches your in-game guild.`,
+                    ephemeral: true
+                });
+                return;
+            }
+        } catch (apiError) {
+            console.error('Error verifying Albion guild:', apiError);
+        }
+
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const hasRequiredRole = !config.requiredRoleId || member.roles.cache.has(config.requiredRoleId);
 
