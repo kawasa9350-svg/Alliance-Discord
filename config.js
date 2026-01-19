@@ -43,7 +43,9 @@ module.exports = {
     },
 
     // Caller Fee Rate
-    callerFeeRate: parseFloat(process.env.CALLER_FEE_RATE) || 0.05,
+    callerFeeRate: process.env.CALLER_FEE_RATE !== undefined
+        ? parseFloat(process.env.CALLER_FEE_RATE) || 0
+        : 0,
     
     // Phoenix webhook (for pushing splits to Phoenix Assistance)
     phoenixWebhookUrl: process.env.PHOENIX_WEBHOOK_URL || '',
