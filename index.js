@@ -314,7 +314,7 @@ async function handleRegisterCommand(interaction) {
         );
 
         const anyRoleAssigned = hasGuildRoleAssigned || hasAllianceRoleAssigned;
-        let roleAssignedText = anyRoleAssigned ? '✅ Yes' : '❌ No (Bot lacks permission or role missing)';
+        let roleAssignedText = anyRoleAssigned ? '✅ Yes' : '❌ No';
         
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
