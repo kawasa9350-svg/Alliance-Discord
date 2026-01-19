@@ -249,6 +249,36 @@ async function handleRegisterCommand(interaction) {
             return;
         }
 
+        const existingUsersWithName = await User.find({
+            ingameName: { $regex: new RegExp(`^${ingameName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+        }).lean();
+
+        if (existingUsersWithName.length > 0) {
+            let hasActiveOwner = false;
+
+            for (const existing of existingUsersWithName) {
+                if (!existing.discordId || existing.discordId === interaction.user.id) {
+                    continue;
+                }
+
+                try {
+                    await interaction.guild.members.fetch(existing.discordId);
+                    hasActiveOwner = true;
+                    break;
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            if (hasActiveOwner) {
+                await interaction.reply({
+                    content: '❌ This in-game name is already registered to another member in this server. If you believe this is your account, please contact an officer.',
+                    ephemeral: true
+                });
+                return;
+            }
+        }
+
         const member = await interaction.guild.members.fetch(interaction.user.id);
 
         let nicknameChanged = false;
