@@ -312,9 +312,6 @@ async function handleRegisterCommand(interaction) {
             userData,
             { upsert: true, new: true }
         );
-
-        const anyRoleAssigned = hasGuildRoleAssigned || hasAllianceRoleAssigned;
-        let roleAssignedText = anyRoleAssigned ? '✅ Yes' : '❌ No';
         
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
@@ -323,7 +320,6 @@ async function handleRegisterCommand(interaction) {
             .addFields(
                 { name: 'In-Game Name', value: ingameName, inline: true },
                 { name: 'Guild', value: guildDisplayName, inline: true },
-                { name: 'Role Assigned', value: roleAssignedText, inline: true },
                 { name: 'Nickname Changed', value: nicknameChanged ? '✅ Yes' : '❌ No (Bot lacks permission)', inline: true }
             )
             .setTimestamp();
