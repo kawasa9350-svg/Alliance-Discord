@@ -245,7 +245,56 @@ async function handleRegisterCommand(interaction) {
         }
 
         const member = await interaction.guild.members.fetch(interaction.user.id);
-        const hasRequiredRole = !config.requiredRoleId || member.roles.cache.has(config.requiredRoleId);
+
+        // Handle role assignment and nickname change
+        let roleAssigned = false;
+        let nicknameChanged = false;
+        let nicknameError = '';
+        let hasRequiredRole = false;
+
+        // Assign guild role
+        try {
+            if (guildRoleId) {
+                const role = interaction.guild.roles.cache.get(guildRoleId);
+                if (role) {
+                    await member.roles.add(role);
+                    roleAssigned = true;
+                } else {
+                    console.warn(`Guild role with ID ${guildRoleId} not found in guild ${interaction.guild.id}`);
+                }
+            } else {
+                console.warn(`Guild ${guildDisplayName} does not have a configured roleId`);
+            }
+        } catch (error) {
+            console.error('Error assigning guild role:', error);
+        }
+
+        // Assign required alliance role, if configured
+        if (config.requiredRoleId) {
+            try {
+                const requiredRole = interaction.guild.roles.cache.get(config.requiredRoleId);
+                if (requiredRole) {
+                    await member.roles.add(requiredRole);
+                    hasRequiredRole = true;
+                } else {
+                    console.warn(`Required role with ID ${config.requiredRoleId} not found in guild ${interaction.guild.id}`);
+                }
+            } catch (error) {
+                console.error('Error assigning required alliance role:', error);
+            }
+        }
+
+        // Change nickname with guild tag
+        try {
+            const newNickname = guildTag ? `${guildTag} ${ingameName}` : ingameName;
+            await member.setNickname(newNickname);
+            nicknameChanged = true;
+        } catch (error) {
+            console.error('Error changing nickname:', error);
+            nicknameError = guildTag
+                ? `Please manually change your nickname to: **${guildTag} ${ingameName}**`
+                : `Please manually change your nickname to: **${ingameName}**`;
+        }
 
         // Update or create user in database
         const userData = {
@@ -263,60 +312,8 @@ async function handleRegisterCommand(interaction) {
             { upsert: true, new: true }
         );
 
-        // Handle role assignment and nickname change
-        let roleAssigned = false;
-        let nicknameChanged = false;
-        let nicknameError = '';
-
-        if (hasRequiredRole) {
-            // Assign guild role
-            try {
-                if (guildRoleId) {
-                    const role = interaction.guild.roles.cache.get(guildRoleId);
-                    if (role) {
-                        await member.roles.add(role);
-                        roleAssigned = true;
-                    } else {
-                        console.warn(`Guild role with ID ${guildRoleId} not found in guild ${interaction.guild.id}`);
-                    }
-                } else {
-                    console.warn(`Guild ${guildDisplayName} does not have a configured roleId`);
-                }
-            } catch (error) {
-                console.error('Error assigning role:', error);
-            }
-
-            // Change nickname with guild tag
-            try {
-                const newNickname = guildTag ? `${guildTag} ${ingameName}` : ingameName;
-                await member.setNickname(newNickname);
-                nicknameChanged = true;
-            } catch (error) {
-                console.error('Error changing nickname:', error);
-                nicknameError = guildTag
-                    ? `Please manually change your nickname to: **${guildTag} ${ingameName}**`
-                    : `Please manually change your nickname to: **${ingameName}**`;
-            }
-        } else {
-            // Just change nickname without tag
-            try {
-                await member.setNickname(ingameName);
-                nicknameChanged = true;
-            } catch (error) {
-                console.error('Error changing nickname:', error);
-                nicknameError = `Please manually change your nickname to: **${ingameName}**`;
-            }
-        }
-
         // Send confirmation
-        // Format role mention if role is missing
-        let roleAssignedText = '✅ Yes';
-        if (!roleAssigned && config.requiredRoleId) {
-            const requiredRoleMention = `<@&${config.requiredRoleId}>`;
-            roleAssignedText = `❌ No (Missing ${requiredRoleMention} role)`;
-        } else if (!roleAssigned) {
-            roleAssignedText = '❌ No (Missing @alliance role)';
-        }
+        let roleAssignedText = roleAssigned ? '✅ Yes' : '❌ No (Bot lacks permission or role missing)';
         
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
