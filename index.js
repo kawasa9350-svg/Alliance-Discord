@@ -246,19 +246,14 @@ async function handleRegisterCommand(interaction) {
 
         const member = await interaction.guild.members.fetch(interaction.user.id);
 
-        // Handle role assignment and nickname change
-        let roleAssigned = false;
         let nicknameChanged = false;
         let nicknameError = '';
-        let hasRequiredRole = false;
 
-        // Assign guild role
         try {
             if (guildRoleId) {
                 const role = interaction.guild.roles.cache.get(guildRoleId);
                 if (role) {
                     await member.roles.add(role);
-                    roleAssigned = true;
                 } else {
                     console.warn(`Guild role with ID ${guildRoleId} not found in guild ${interaction.guild.id}`);
                 }
@@ -269,13 +264,11 @@ async function handleRegisterCommand(interaction) {
             console.error('Error assigning guild role:', error);
         }
 
-        // Assign required alliance role, if configured
         if (config.requiredRoleId) {
             try {
                 const requiredRole = interaction.guild.roles.cache.get(config.requiredRoleId);
                 if (requiredRole) {
                     await member.roles.add(requiredRole);
-                    hasRequiredRole = true;
                 } else {
                     console.warn(`Required role with ID ${config.requiredRoleId} not found in guild ${interaction.guild.id}`);
                 }
@@ -296,14 +289,17 @@ async function handleRegisterCommand(interaction) {
                 : `Please manually change your nickname to: **${ingameName}**`;
         }
 
-        // Update or create user in database
+        const updatedMember = await interaction.guild.members.fetch(interaction.user.id);
+        const hasGuildRoleAssigned = guildRoleId ? updatedMember.roles.cache.has(guildRoleId) : false;
+        const hasAllianceRoleAssigned = config.requiredRoleId ? updatedMember.roles.cache.has(config.requiredRoleId) : false;
+
         const userData = {
             discordId: interaction.user.id,
             username: interaction.user.username,
             guild: guildDisplayName,
             ingameName: ingameName,
             registeredAt: new Date(),
-            hasRequiredRole: hasRequiredRole
+            hasRequiredRole: hasAllianceRoleAssigned
         };
 
         await User.findOneAndUpdate(
@@ -312,8 +308,8 @@ async function handleRegisterCommand(interaction) {
             { upsert: true, new: true }
         );
 
-        // Send confirmation
-        let roleAssignedText = roleAssigned ? '✅ Yes' : '❌ No (Bot lacks permission or role missing)';
+        const anyRoleAssigned = hasGuildRoleAssigned || hasAllianceRoleAssigned;
+        let roleAssignedText = anyRoleAssigned ? '✅ Yes' : '❌ No (Bot lacks permission or role missing)';
         
         const confirmEmbed = new EmbedBuilder()
             .setTitle('✅ Registration Successful!')
