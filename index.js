@@ -1312,10 +1312,18 @@ async function handleGuildAutocomplete(interaction) {
         })));
     } catch (error) {
         console.error('Error in guild autocomplete:', error);
-        await interaction.respond([{
-            name: 'Error loading guilds',
-            value: 'error-loading'
-        }]);
+        // Avoid responding again if the interaction is unknown or already acknowledged
+        if (error && (error.code === 10062 || error.code === 40060)) {
+            return;
+        }
+        try {
+            await interaction.respond([{
+                name: 'Error loading guilds',
+                value: 'error-loading'
+            }]);
+        } catch (respondError) {
+            console.error('Discord Client Error in guild autocomplete:', respondError);
+        }
     }
 }
 
