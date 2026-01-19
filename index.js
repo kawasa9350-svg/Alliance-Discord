@@ -337,10 +337,21 @@ async function handleRegisterCommand(interaction) {
 
     } catch (error) {
         console.error('Error in register command:', error);
-        await interaction.reply({ 
-            content: '❌ An error occurred while processing your registration. Please try again later.', 
-            ephemeral: true 
-        });
+        try {
+            if (interaction.deferred || interaction.replied) {
+                await interaction.followUp({
+                    content: '❌ An error occurred while processing your registration. Please try again later.',
+                    ephemeral: true
+                });
+            } else {
+                await interaction.reply({ 
+                    content: '❌ An error occurred while processing your registration. Please try again later.', 
+                    ephemeral: true 
+                });
+            }
+        } catch (replyError) {
+            console.error('Discord Client Error:', replyError);
+        }
     }
 }
 
