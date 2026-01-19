@@ -242,6 +242,11 @@ async function handleRegisterCommand(interaction) {
             }
         } catch (apiError) {
             console.error('Error verifying Albion guild:', apiError);
+            await interaction.reply({
+                content: '❌ Failed to verify your guild with the Albion API. Please try again later or contact an officer.',
+                ephemeral: true
+            });
+            return;
         }
 
         const member = await interaction.guild.members.fetch(interaction.user.id);
