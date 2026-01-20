@@ -79,8 +79,9 @@ const commands = [
                 type: 3, // STRING type
                 required: true,
                 choices: [
-                    { name: 'BZ Roaming', value: 'BZ Roaming' },
-                    { name: 'PvE Content', value: 'PvE Content' }
+                    { name: 'Royals', value: 'Royals' },
+                    { name: 'HO', value: 'HO' },
+                    { name: 'No Tax', value: 'No Tax' }
                 ]
             },
             {
@@ -124,8 +125,9 @@ const commands = [
                         type: 3, // STRING type
                         required: true,
                         choices: [
-                            { name: 'BZ Roaming', value: 'BZ Roaming' },
-                            { name: 'PvE Content', value: 'PvE Content' }
+                            { name: 'Royals', value: 'Royals' },
+                            { name: 'HO', value: 'HO' },
+                            { name: 'No Tax', value: 'No Tax' }
                         ]
                     }
                 ]

@@ -34,11 +34,14 @@ module.exports = {
 
     // Content Types
     contentTypes: {
-        'BZ Roaming': {
+        'Royals': {
+            color: '#0099ff'
+        },
+        'HO': {
             color: '#FF6B35'
         },
-        'PvE Content': {
-            color: '#4ECDC4'
+        'No Tax': {
+            color: '#00ff00'
         }
     },
 
