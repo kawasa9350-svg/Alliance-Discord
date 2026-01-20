@@ -97,16 +97,25 @@ const commands = [
                 required: true
             },
             {
-                name: 'repair_fees',
-                description: 'Total repair fees in silver',
-                type: 4, // INTEGER type
-                required: true
-            },
-            {
                 name: 'total_loot',
                 description: 'Total loot value in silver',
                 type: 4, // INTEGER type
-                required: true
+                required: true,
+                min_value: 0
+            },
+            {
+                name: 'silver_bags',
+                description: 'Silver bags value (not taxed, added after tax)',
+                type: 4, // INTEGER type
+                required: true,
+                min_value: 0
+            },
+            {
+                name: 'repair_fees',
+                description: 'Total repair fees in silver',
+                type: 4, // INTEGER type
+                required: true,
+                min_value: 0
             }
         ]
     },
