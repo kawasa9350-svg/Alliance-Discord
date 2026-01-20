@@ -493,10 +493,13 @@ async function handleRemoveGuildCommand(interaction) {
             const callerInput = interaction.options.getString('caller');
             const repairFees = interaction.options.getInteger('repair_fees');
             const totalLoot = interaction.options.getInteger('total_loot');
-            const silverBags = interaction.options.getInteger('silver_bags');
+            const silverBags = interaction.options.getInteger('silver_bags') || 0;
 
             // Get content type config
             const contentConfig = config.contentTypes[contentType];
+            
+            console.log(`[Lootsplit] Input: Total=${totalLoot}, SilverBags=${silverBags}, Repairs=${repairFees}, Users=${usersInput}, Caller=${callerInput}`);
+            
             if (!contentConfig) {
                 await interaction.reply({ 
                     content: '❌ Invalid content type selected.',
@@ -739,6 +742,20 @@ async function handleRemoveGuildCommand(interaction) {
                             phoenixTaxableLoot += callerFee;
                         }
 
+                        const payload = {
+                            guildId: targetGuildId,
+                            contentType,
+                            totalLoot: phoenixTaxableLoot, // This is NET loot (after repairs/caller fee)
+                            silverBags: phoenixSilverBags, // Untaxed component
+                            repairFees: 0, // We send 0 because totalLoot is already NET of repairs
+                            explicitCallerFee: callerFee, // The exact fee amount
+                            callerFeeRate,
+                            callerId, 
+                            participants: phoenixRebelsUserIds 
+                        };
+                        
+                        console.log(`[Lootsplit] Sending to Phoenix: Total=${phoenixTaxableLoot}, SilverBags=${phoenixSilverBags}, Participants=${phoenixRebelsUserIds.length}`);
+
                         // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
                         const res = await fetch(config.phoenixWebhookUrl, {
                             method: 'POST',
@@ -746,17 +763,7 @@ async function handleRemoveGuildCommand(interaction) {
                                 'Content-Type': 'application/json',
                                 'X-Webhook-Secret': config.phoenixWebhookSecret
                             },
-                            body: JSON.stringify({
-                                guildId: targetGuildId,
-                                contentType,
-                                totalLoot: phoenixTaxableLoot, // This is NET loot (after repairs/caller fee)
-                                silverBags: phoenixSilverBags, // Untaxed component
-                                repairFees: 0, // We send 0 because totalLoot is already NET of repairs
-                                explicitCallerFee: callerFee, // The exact fee amount
-                                callerFeeRate,
-                                callerId, 
-                                participants: phoenixRebelsUserIds 
-                            })
+                            body: JSON.stringify(payload)
                         });
                         
                         if (!res.ok) {
