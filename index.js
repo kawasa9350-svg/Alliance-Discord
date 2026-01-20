@@ -486,62 +486,63 @@ async function handleRemoveGuildCommand(interaction) {
     });
 }
 // Lootsplit command handler
-async function handleLootsplitCommand(interaction) {
-    try {
-        const contentType = interaction.options.getString('content_type');
-        const usersInput = interaction.options.getString('users');
-        const callerInput = interaction.options.getString('caller');
-        const repairFees = interaction.options.getInteger('repair_fees');
-        const totalLoot = interaction.options.getInteger('total_loot');
+    async function handleLootsplitCommand(interaction) {
+        try {
+            const contentType = interaction.options.getString('content_type');
+            const usersInput = interaction.options.getString('users');
+            const callerInput = interaction.options.getString('caller');
+            const repairFees = interaction.options.getInteger('repair_fees');
+            const totalLoot = interaction.options.getInteger('total_loot');
+            const silverBags = interaction.options.getInteger('silver_bags');
 
-        // Get content type config
-        const contentConfig = config.contentTypes[contentType];
-        if (!contentConfig) {
-            await interaction.reply({ 
-                content: '❌ Invalid content type selected.',
-                flags: 64 // Ephemeral flag
-            });
-            return;
-        }
+            // Get content type config
+            const contentConfig = config.contentTypes[contentType];
+            if (!contentConfig) {
+                await interaction.reply({ 
+                    content: '❌ Invalid content type selected.',
+                    flags: 64 // Ephemeral flag
+                });
+                return;
+            }
 
-        // Parse mentioned users from the users input string
-        const mentionRegex = /<@!?(\d+)>/g;
-        const userIds = [];
-        let match;
-        
-        while ((match = mentionRegex.exec(usersInput)) !== null) {
-            userIds.push(match[1]);
-        }
+            // Parse mentioned users from the users input string
+            const mentionRegex = /<@!?(\d+)>/g;
+            const userIds = [];
+            let match;
+            
+            while ((match = mentionRegex.exec(usersInput)) !== null) {
+                userIds.push(match[1]);
+            }
 
-        if (userIds.length === 0) {
-            await interaction.reply({ 
-                content: '❌ Please mention the users participating in the loot split.',
-                flags: 64 // Ephemeral flag
-            });
-            return;
-        }
+            if (userIds.length === 0) {
+                await interaction.reply({ 
+                    content: '❌ Please mention the users participating in the loot split.',
+                    flags: 64 // Ephemeral flag
+                });
+                return;
+            }
 
-        // Parse caller from the caller input string
-        if (!callerInput) {
-            await interaction.reply({ 
-                content: '❌ This command has been updated. Please use the new format: `/lootsplit content_type users caller total_loot`\n\n**New format:**\n- `content_type`: Type of content\n- `users`: Mention participating users\n- `caller`: Mention the caller\n- `total_loot`: Total loot value\n\nPlease try the command again with the updated format.',
-                flags: 64 // Ephemeral flag
-            });
-            return;
-        }
-        
-        const callerMatch = callerInput.match(/<@!?(\d+)>/);
-        if (!callerMatch) {
-            await interaction.reply({ 
-                content: '❌ Please mention the caller user.',
-                flags: 64 // Ephemeral flag
-            });
-            return;
-        }
-        const callerId = callerMatch[1];
+            // Parse caller from the caller input string
+            if (!callerInput) {
+                await interaction.reply({ 
+                    content: '❌ This command has been updated. Please use the new format: `/lootsplit content_type users caller total_loot silver_bags repair_fees`\n\n**New format:**\n- `content_type`: Type of content\n- `users`: Mention participating users\n- `caller`: Mention the caller\n- `total_loot`: Total loot value (can be 0)\n- `silver_bags`: Untaxed silver bags (can be 0)\n- `repair_fees`: Repair fees\n\nPlease try the command again with the updated format.',
+                    flags: 64 // Ephemeral flag
+                });
+                return;
+            }
+            
+            const callerMatch = callerInput.match(/<@!?(\d+)>/);
+            if (!callerMatch) {
+                await interaction.reply({ 
+                    content: '❌ Please mention the caller user.',
+                    flags: 64 // Ephemeral flag
+                });
+                return;
+            }
+            const callerId = callerMatch[1];
 
-        // Fetch the mentioned users
-        const mentionedUsers = new Map();
+            // Fetch the mentioned users
+            const mentionedUsers = new Map();
         for (const userId of userIds) {
             try {
                 const user = await client.users.fetch(userId);
@@ -610,11 +611,17 @@ async function handleLootsplitCommand(interaction) {
         }
 
         // Calculate loot split (repair fees subtracted first, then caller fee, no guild tax)
-        const lootAfterRepairFees = totalLoot - repairFees;
+        // Ensure net loot is not negative (if total_loot is 0 for silver bags only split)
+        const lootAfterRepairFees = Math.max(0, totalLoot - repairFees);
+        
         const callerFeeRate = config.callerFeeRate;
         const callerFee = Math.floor(lootAfterRepairFees * callerFeeRate);
         const lootAfterCallerFee = lootAfterRepairFees - callerFee;
-        const lootPerPerson = Math.floor(lootAfterCallerFee / registeredUsers.length);
+        
+        // Add silver bags (untaxed) to the distributable amount
+        const totalDistributable = lootAfterCallerFee + silverBags;
+        
+        const lootPerPerson = Math.floor(totalDistributable / registeredUsers.length);
 
         // Group users by guild for per-guild totals
         const guildTotals = {};
@@ -644,7 +651,7 @@ async function handleLootsplitCommand(interaction) {
             .setTitle(`💰 Loot Split - ${contentType}`)
             .setColor(contentConfig.color)
             .addFields(
-                { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Repair Fees:** ${repairFees.toLocaleString()} silver\n**After Repairs:** ${lootAfterRepairFees.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
+                { name: '📊 Summary', value: `**Total Loot:** ${totalLoot.toLocaleString()} silver\n**Repair Fees:** ${repairFees.toLocaleString()} silver\n**After Repairs:** ${lootAfterRepairFees.toLocaleString()} silver\n**Caller Fee (${(callerFeeRate * 100).toFixed(1)}%):** ${callerFee.toLocaleString()} silver\n**Silver Bags:** ${silverBags.toLocaleString()} silver\n**Per Person:** ${lootPerPerson.toLocaleString()} silver`, inline: false },
                 { name: '📢 Caller', value: `${caller} - ${callerData.guild}`, inline: false }
             )
             .setTimestamp();
@@ -712,26 +719,24 @@ async function handleLootsplitCommand(interaction) {
                     
                     // Only send if there are Phoenix Rebels members
                     if (phoenixRebelsUserIds.length > 0) {
-                        // Calculate Phoenix Rebels portion of the original loot (before repairs/caller fee)
-                        // User Request: "If phoenix is 10 people then 1,187,500*10 + (caller fee) is sent to albion assistance"
-                        // 1,187,500 is the Net Per Person share (after repairs and caller fee).
-                        // So Phoenix Base Share = NetPerPerson * PhoenixCount.
-                        // And we add the Caller Fee ON TOP of that if the caller is Phoenix.
+                        // Calculate Phoenix Rebels portion
+                        // We need to separate Taxable Loot (Net Loot) and Silver Bags (Untaxed)
                         
-                        // Let's recalculate based on the Alliance logic:
-                        // lootAfterRepairFees = totalLoot - repairFees
-                        // callerFee = lootAfterRepairFees * rate
-                        // lootAfterCallerFee = lootAfterRepairFees - callerFee
-                        // lootPerPerson = lootAfterCallerFee / totalParticipants
+                        const totalParticipants = registeredUsers.length;
+                        const phoenixCount = phoenixRebelsUserIds.length;
                         
-                        // Phoenix Share = (lootPerPerson * phoenixCount)
-                        // If Caller is Phoenix, we ADD the callerFee to the payload total so Phoenix Assistance can strip it out later.
+                        // Calculate per-person shares (keep as float for precision)
+                        const taxablePerPerson = lootAfterCallerFee / totalParticipants;
+                        const silverPerPerson = silverBags / totalParticipants;
                         
-                        let phoenixTotalLoot = Math.floor(lootPerPerson * phoenixRebelsUserIds.length);
+                        // Calculate Phoenix Totals
+                        let phoenixTaxableLoot = Math.floor(taxablePerPerson * phoenixCount);
+                        const phoenixSilverBags = Math.floor(silverPerPerson * phoenixCount);
                         
-                        // If caller is in Phoenix, add the caller fee to the bundle
+                        // If caller is in Phoenix, add the caller fee to the Taxable Bundle
+                        // Phoenix Assistance will handle separating it out again based on explicitCallerFee
                         if (callerData && callerData.guild === 'Phoenix Rebels') {
-                            phoenixTotalLoot += callerFee;
+                            phoenixTaxableLoot += callerFee;
                         }
 
                         // Send actual callerId - Phoenix will only credit caller fee if caller is Phoenix Rebels
@@ -744,8 +749,9 @@ async function handleLootsplitCommand(interaction) {
                             body: JSON.stringify({
                                 guildId: targetGuildId,
                                 contentType,
-                                totalLoot: phoenixTotalLoot, // Calculated as (Split * Count) + CallerFee
-                                repairFees: repairFees, // Send FULL repair fees as requested for tax deduction logic
+                                totalLoot: phoenixTaxableLoot, // This is NET loot (after repairs/caller fee)
+                                silverBags: phoenixSilverBags, // Untaxed component
+                                repairFees: 0, // We send 0 because totalLoot is already NET of repairs
                                 explicitCallerFee: callerFee, // The exact fee amount
                                 callerFeeRate,
                                 callerId, 
