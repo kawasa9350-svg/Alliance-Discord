@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, ComponentType } = require('discord.js');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
 const config = require('./config');
@@ -18,7 +18,7 @@ const Guild = require('./models/Guild');
 
 const ALBION_API_BASE_URL = process.env.ALBION_API_BASE_URL || 'https://gameinfo.albiononline.com/api/gameinfo';
 
-async function getAlbionPlayerGuild(ingameName) {
+async function searchAlbionPlayers(ingameName) {
     const searchUrl = `${ALBION_API_BASE_URL}/search?q=${encodeURIComponent(ingameName)}`;
     const searchRes = await fetch(searchUrl);
     if (!searchRes.ok) {
@@ -26,11 +26,12 @@ async function getAlbionPlayerGuild(ingameName) {
     }
     const searchData = await searchRes.json();
     const players = searchData.players || [];
-    const player = players.find(p => typeof p.Name === 'string' && p.Name.toLowerCase() === ingameName.toLowerCase());
-    if (!player) {
-        return null;
-    }
-    const playerUrl = `${ALBION_API_BASE_URL}/players/${player.Id}`;
+    // Return all exact matches
+    return players.filter(p => typeof p.Name === 'string' && p.Name.toLowerCase() === ingameName.toLowerCase());
+}
+
+async function getPlayerDetails(playerId) {
+    const playerUrl = `${ALBION_API_BASE_URL}/players/${playerId}`;
     const playerRes = await fetch(playerUrl);
     if (!playerRes.ok) {
         throw new Error(`Albion player lookup failed with status ${playerRes.status}`);
@@ -38,7 +39,8 @@ async function getAlbionPlayerGuild(ingameName) {
     const playerData = await playerRes.json();
     return {
         guildName: playerData.GuildName || null,
-        guildId: playerData.GuildId || null
+        guildId: playerData.GuildId || null,
+        ...playerData // Return full data just in case
     };
 }
 
@@ -224,28 +226,122 @@ async function handleRegisterCommand(interaction) {
 
         let apiGuildMatch = null;
         try {
-            const apiGuild = await getAlbionPlayerGuild(ingameName);
-            if (!apiGuild || !apiGuild.guildName) {
-                await interaction.reply({
-                    content: '❌ Could not find your character or guild in the Albion API. Make sure your in-game name is correct and try again.',
+            const matches = await searchAlbionPlayers(ingameName);
+            let selectedPlayerId = null;
+
+            if (matches.length === 0) {
+                 await interaction.reply({
+                    content: '❌ Could not find your character in the Albion API. Make sure your in-game name is correct and try again.',
                     ephemeral: true
                 });
+                return;
+            } else if (matches.length === 1) {
+                selectedPlayerId = matches[0].Id;
+            } else {
+                 // Multiple matches
+                 // Limit to 10 to avoid API rate limits and ensure responsiveness
+                 const candidateMatches = matches.slice(0, 10);
+                 
+                 // Fetch details for all candidates in parallel to get accurate Total Fame
+                 await interaction.deferReply({ ephemeral: true });
+                 
+                 const detailedMatches = await Promise.all(candidateMatches.map(async (p) => {
+                     try {
+                         return await getPlayerDetails(p.Id);
+                     } catch (e) {
+                         console.error(`Failed to fetch details for ${p.Name}`, e);
+                         return p; // Fallback to search result object
+                     }
+                 }));
+
+                 const options = detailedMatches.map(p => {
+                     let totalFame = 0;
+                     if (p.LifetimeStatistics) {
+                         const killFame = p.KillFame || 0;
+                         const pveFame = p.LifetimeStatistics.PvE ? p.LifetimeStatistics.PvE.Total : 0;
+                         const craftingFame = p.LifetimeStatistics.Crafting ? p.LifetimeStatistics.Crafting.Total : 0;
+                         const gatheringFame = p.LifetimeStatistics.Gathering && p.LifetimeStatistics.Gathering.All ? p.LifetimeStatistics.Gathering.All.Total : 0;
+                         const farmingFame = p.LifetimeStatistics.FarmingFame || 0;
+                         const fishingFame = p.LifetimeStatistics.FishingFame || 0;
+                         
+                         totalFame = killFame + pveFame + craftingFame + gatheringFame + farmingFame + fishingFame;
+                     } else {
+                         // Fallback for search results without details
+                         totalFame = (p.KillFame || 0) + (p.DeathFame || 0);
+                     }
+
+                     return {
+                         label: `${p.Name} (${p.GuildName || 'No Guild'})`,
+                         description: `Total Fame: ${totalFame.toLocaleString()}`,
+                         value: p.Id
+                     };
+                 });
+
+                 const row = new ActionRowBuilder()
+                     .addComponents(
+                         new StringSelectMenuBuilder()
+                             .setCustomId('select_player')
+                             .setPlaceholder('Select your character')
+                             .addOptions(options)
+                     );
+
+                 const response = await interaction.editReply({
+                     content: `Found ${matches.length} players named **${ingameName}**. Please select yours:`,
+                     components: [row],
+                     fetchReply: true
+                 });
+
+                 try {
+                     const confirmation = await response.awaitMessageComponent({ 
+                         filter: i => i.user.id === interaction.user.id && i.customId === 'select_player', 
+                         time: 60000 
+                     });
+                     
+                     selectedPlayerId = confirmation.values[0];
+                     await confirmation.update({ content: `Checking details for selected character...`, components: [] });
+                 } catch (e) {
+                     return interaction.editReply({ content: '❌ Selection timed out. Please try again.', components: [] });
+                 }
+            }
+
+            const apiGuild = await getPlayerDetails(selectedPlayerId);
+
+            if (!apiGuild || !apiGuild.guildName) {
+                const msg = {
+                    content: '❌ Could not verify your guild in the Albion API. Please make sure you are in a guild.',
+                    ephemeral: true
+                };
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ ...msg, components: [] });
+                } else {
+                    await interaction.reply(msg);
+                }
                 return;
             }
             apiGuildMatch = apiGuild.guildName;
             if (apiGuild.guildName.toLowerCase() !== guildDisplayName.toLowerCase()) {
-                await interaction.reply({
+                const msg = {
                     content: `❌ In-game you are in **${apiGuild.guildName}**, not **${guildDisplayName}**. Please select the correct guild that matches your in-game guild.`,
                     ephemeral: true
-                });
+                };
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ ...msg, components: [] });
+                } else {
+                    await interaction.reply(msg);
+                }
                 return;
             }
         } catch (apiError) {
             console.error('Error verifying Albion guild:', apiError);
-            await interaction.reply({
+            const msg = {
                 content: '❌ Failed to verify your guild with the Albion API. Please try again later or contact an officer.',
                 ephemeral: true
-            });
+            };
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ ...msg, components: [] });
+            } else {
+                await interaction.reply(msg);
+            }
             return;
         }
 
@@ -271,10 +367,15 @@ async function handleRegisterCommand(interaction) {
             }
 
             if (hasActiveOwner) {
-                await interaction.reply({
+                const msg = {
                     content: '❌ This in-game name is already registered to another member in this server. If you believe this is your account, please contact an officer.',
                     ephemeral: true
-                });
+                };
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ ...msg, components: [] });
+                } else {
+                    await interaction.reply(msg);
+                }
                 return;
             }
         }
@@ -359,7 +460,12 @@ async function handleRegisterCommand(interaction) {
             confirmEmbed.addFields({ name: '📝 Manual Action Required', value: nicknameError, inline: false });
         }
 
-        await interaction.reply({ embeds: [confirmEmbed] });
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ content: '✅ Registration complete.', components: [] });
+            await interaction.followUp({ embeds: [confirmEmbed] });
+        } else {
+            await interaction.reply({ embeds: [confirmEmbed] });
+        }
 
     } catch (error) {
         console.error('Error in register command:', error);
