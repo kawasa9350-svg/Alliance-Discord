@@ -193,6 +193,27 @@ client.on('interactionCreate', async (interaction) => {
         } else if (commandName === 'remove-guild') {
             await handleRemoveGuildCommand(interaction);
         }
+    } else if (interaction.isAutocomplete()) {
+        const command = interaction.commandName;
+        const focusedOption = interaction.options.getFocused(true);
+
+        if ((command === 'register' && focusedOption.name === 'guild') || 
+            (command === 'remove-guild' && focusedOption.name === 'name')) {
+            
+            try {
+                const choices = await getAllGuildChoices();
+                const filtered = choices.filter(choice => 
+                    choice.toLowerCase().includes(focusedOption.value.toLowerCase())
+                );
+                
+                await interaction.respond(
+                    filtered.slice(0, 25).map(choice => ({ name: choice, value: choice }))
+                );
+            } catch (error) {
+                console.error('Error handling guild autocomplete:', error);
+                await interaction.respond([]);
+            }
+        }
     }
 });
 
