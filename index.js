@@ -193,27 +193,6 @@ client.on('interactionCreate', async (interaction) => {
         } else if (commandName === 'remove-guild') {
             await handleRemoveGuildCommand(interaction);
         }
-    } else if (interaction.isAutocomplete()) {
-        const command = interaction.commandName;
-        const focusedOption = interaction.options.getFocused(true);
-
-        if ((command === 'register' && focusedOption.name === 'guild') || 
-            (command === 'remove-guild' && focusedOption.name === 'name')) {
-            
-            try {
-                const choices = await getAllGuildChoices();
-                const filtered = choices.filter(choice => 
-                    choice.toLowerCase().includes(focusedOption.value.toLowerCase())
-                );
-                
-                await interaction.respond(
-                    filtered.slice(0, 25).map(choice => ({ name: choice, value: choice }))
-                );
-            } catch (error) {
-                console.error('Error handling guild autocomplete:', error);
-                await interaction.respond([]);
-            }
-        }
     }
 });
 
@@ -1459,10 +1438,17 @@ client.on('interactionCreate', async (interaction) => {
 async function handleGuildAutocomplete(interaction) {
     try {
         const focusedValue = interaction.options.getFocused(true)?.value || '';
+        // Debug log
+        console.log(`[Autocomplete] Guild search for: "${focusedValue}"`);
+        
         const allGuilds = await getAllGuildChoices();
+        console.log(`[Autocomplete] Found ${allGuilds.length} total guilds: ${allGuilds.join(', ')}`);
+        
         const filtered = allGuilds
             .filter(name => name.toLowerCase().includes(focusedValue.toLowerCase()))
             .slice(0, 25);
+            
+        console.log(`[Autocomplete] Returning ${filtered.length} matches`);
 
         if (filtered.length === 0) {
             await interaction.respond([{
