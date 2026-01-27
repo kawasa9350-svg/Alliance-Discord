@@ -1577,13 +1577,13 @@ client.on('invalidSession', () => {
 
 // Connection monitoring and auto-reconnect
 let reconnectAttempts = 0;
-const maxReconnectAttempts = 5;
+const maxReconnectAttempts = 15;
 let reconnectTimeout;
 
 const attemptReconnect = () => {
     if (reconnectAttempts >= maxReconnectAttempts) {
-        console.error('❌ Max reconnection attempts reached. Bot will not reconnect automatically.');
-        return;
+        console.error('❌ Max reconnection attempts reached. Exiting to allow auto-restart...');
+        process.exit(1);
     }
     
     reconnectAttempts++;
